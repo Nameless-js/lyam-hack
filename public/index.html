@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Контур — обращения сотрудников</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><span class="logo" aria-hidden="true">К</span><span>Контур<small>Обратная связь сотрудников</small></span></div>
+    <div class="header-actions"><button id="instructions" type="button" class="secondary">Инструкция</button><button id="notifications" type="button" class="secondary" hidden>Уведомления <span id="unread" hidden></span></button></div>
+    <form id="profile-form"><label for="profile">Демо-профиль</label><select id="profile" aria-label="Демо-профиль"></select><button type="submit" class="secondary">Войти</button></form>
+  </header>
+  <main id="main">
+    <p id="notice" role="status" hidden></p>
+    <section class="intro">
+      <div><p class="eyebrow">РАБОЧЕЕ ПРОСТРАНСТВО</p><h1 id="heading">Обращения сотрудников</h1><p id="subtitle">Выберите демо-профиль, чтобы открыть рабочее пространство.</p></div>
+      <button id="new-case" hidden>+ Новое обращение</button>
+    </section>
+    <details id="stats-panel" class="stats-panel" hidden><summary>Сводка координатора</summary><section id="stats" class="stats" aria-label="Сводка"></section></details>
+    <section id="workspace" class="panel inbox" aria-label="Рабочее пространство" hidden>
+      <aside class="inbox-left" aria-label="Список чатов">
+        <div class="panel-head"><div><h2>Чаты</h2><span id="count"></span></div><button id="refresh" type="button" class="secondary" aria-label="Обновить список">↻</button></div>
+        <div id="filters" class="filters">
+          <input id="search" type="search" placeholder="Сотрудник, тема или номер" aria-label="Поиск чатов">
+          <select id="type-filter" aria-label="Тип обращения"></select>
+          <details class="extra-filters">
+            <summary>Ещё фильтры</summary>
+            <select id="status-filter" aria-label="Статус"></select>
+            <select id="category-filter" aria-label="Категория"></select>
+            <select id="department-filter" aria-label="Подразделение"></select>
+            <label class="checkbox"><input id="late-filter" type="checkbox"> Просроченные</label>
+          </details>
+        </div>
+        <div id="cases"></div>
+      </aside>
+      <section id="chat" class="inbox-chat" aria-label="Переписка"></section>
+      <aside id="case-details" class="inbox-right" aria-label="Детали обращения"></aside>
+    </section>
+  </main>
+  <dialog id="dialog"><div id="dialog-content"></div></dialog>
+  <aside id="tour" class="tour" aria-label="Инструкция" hidden></aside>
+</body>
+</html>

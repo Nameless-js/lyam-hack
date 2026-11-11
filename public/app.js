@@ -45,6 +45,7 @@ function showRole() {
   $('workspace').hidden = !user
   $('stats-panel').hidden = user?.role !== 'admin'
   $('notifications').hidden = user?.role !== 'admin'
+  $('telegram').hidden = user?.role !== 'admin'
   $('department-filter').hidden = user?.role !== 'admin'
 }
 function draw() {
@@ -315,6 +316,41 @@ async function checkInbox(show = false) {
     </article>`).join('') || '<p class="muted">Пока нет событий.</p>') + '</div>')
 }
 $('notifications').onclick = () => checkInbox(true).catch(error => notice(error.message, true))
+async function checkTelegram() {
+  if (config?.user?.role !== 'admin') return
+  const status = await api('telegram')
+  if (config?.user?.role === 'admin') {
+    $('telegram').textContent = status.connected ? 'Telegram подключён' : 'Подключить Telegram'
+  }
+  return status
+}
+$('telegram').onclick = async () => {
+  try {
+    const status = await checkTelegram()
+    if (!status.enabled) {
+      modal('Telegram', '<p>Бот пока не настроен.</p>')
+    } else if (status.connected) {
+      modal('Telegram подключён', '<p>Бот присылает уведомления о новых обращениях.</p><button id="telegram-disconnect" type="button" class="secondary">Отключить</button>')
+      $('telegram-disconnect').onclick = async () => {
+        try {
+          const response = await fetch('/api/telegram', { method: 'DELETE' })
+          if (!response.ok) throw new Error('Не удалось отключить Telegram.')
+          $('telegram').textContent = 'Подключить Telegram'
+          $('dialog').close()
+        } catch (error) {
+          $('dialog-error').textContent = error.message
+          $('dialog-error').hidden = false
+        }
+      }
+    } else {
+      const { url } = await api('telegram', {})
+      modal('Подключить Telegram', '<p>Откройте бота и нажмите «Старт». Ссылка действует пять минут.</p><a href="' +
+        escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">Открыть бота в Telegram</a>')
+    }
+  } catch (error) {
+    notice(error.message, true)
+  }
+}
 $('dialog').addEventListener('click', async event => {
   const id = Number(event.target.closest('[data-audit-case]')?.dataset.auditCase)
   if (!id) return
@@ -327,6 +363,7 @@ $('dialog').addEventListener('click', async event => {
 setInterval(async () => {
   if (document.hidden || !config?.user) return
   void checkInbox().catch(() => {})
+  void checkTelegram().catch(() => {})
   if ($('dialog').open || !$('tour').hidden || $('workspace').contains(document.activeElement)) return
   try {
     const profile = config.user.id

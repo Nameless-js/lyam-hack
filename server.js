@@ -4,6 +4,7 @@ const path = require('node:path')
 const { randomUUID } = require('node:crypto')
 const { DatabaseSync } = require('node:sqlite')
 const { suggest, matchAnswer, telegram } = require('./integrations')
+const telegramLinks = require('./telegram-links')
 
 const seed = require('./seed.json')
 const types = [...new Set(seed.map(item => item.type)), 'Просьба', 'Вопрос']
@@ -26,6 +27,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS cases (id INTEGER PRIMARY KEY, data TEXT NOT NULL);
   CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY, time TEXT NOT NULL, actor TEXT NOT NULL, action TEXT NOT NULL, case_id INTEGER, incoming INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS knowledge (id INTEGER PRIMARY KEY, case_id INTEGER NOT NULL, event_index INTEGER NOT NULL, question TEXT NOT NULL, answer TEXT NOT NULL, UNIQUE(case_id, event_index));
+  CREATE TABLE IF NOT EXISTS telegram_owner (id INTEGER PRIMARY KEY CHECK (id = 1), chat_id TEXT NOT NULL);
 `)
 const insert = db.prepare('INSERT INTO cases (id, data) VALUES (?, ?)')
 const update = db.prepare('UPDATE cases SET data = ? WHERE id = ?')
@@ -53,10 +55,13 @@ const defaultAnswers = [
 ]
 defaultAnswers.forEach(([question, answer], index) => insertDefaultAnswer.run(index, question, answer))
 const kind = type => ({ 'Проблема': 'Жалоба', 'Предложение': 'Рекомендация' }[type] || type)
+let ownerChat = process.env.TELEGRAM_CHAT_ID || db.prepare('SELECT chat_id FROM telegram_owner WHERE id = 1').get()?.chat_id
+const ownerCode = telegramLinks.enabled && !ownerChat ? 'owner_' + randomUUID() : null
 function audit(user, action, id = null, incoming = false) {
   const actor = user?.name || 'Гость'
   insertAudit.run(stamp(), actor, action, id, Number(incoming))
-  telegram(actor + ' · ' + action + (id ? ' · ' + caseNumber(id) : ''))
+  telegram(actor + ' · ' + action + (id ? ' · ' + caseNumber(id) : ''), ownerChat)
+  if (incoming) telegramLinks.notifySubscribers(action + ' · ' + caseNumber(id), ownerChat)
 }
 
 async function answerQuestion(item) {
@@ -233,6 +238,22 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { user, profiles, types, categories, statuses, priorities, departments, transitions })
     }
     if (!user) fail(401, 'Выберите демо-профиль.')
+    if (route === '/api/telegram' && ['GET', 'POST', 'DELETE'].includes(req.method)) {
+      if (user.role !== 'admin') fail(403, 'Подключение доступно координатору.')
+      const binding = (req.headers.cookie || '').match(/(?:^|;\s*)telegram_binding=([\w-]+)/)?.[1]
+      if (req.method === 'GET') {
+        return send(res, 200, { enabled: telegramLinks.enabled, connected: telegramLinks.isConnected(binding) })
+      }
+      if (req.method === 'DELETE') {
+        telegramLinks.disconnect(binding)
+        return send(res, 200, { connected: false })
+      }
+      if (!telegramLinks.enabled) fail(503, 'Telegram пока не настроен.')
+      const id = binding || randomUUID()
+      return send(res, 200, { url: telegramLinks.startLink(id) }, {
+        'Set-Cookie': 'telegram_binding=' + id + '; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800',
+      })
+    }
     if (req.method === 'GET' && route === '/api/audit') {
       if (user.role !== 'admin') fail(403, 'Журнал доступен координатору.')
       const after = Math.max(0, Number.parseInt(url.searchParams.get('after'), 10) || 0)
@@ -319,4 +340,14 @@ const server = http.createServer(async (req, res) => {
   }
 })
 const port = Number(process.env.PORT || 3000)
-server.listen(port, '127.0.0.1', () => console.log('http://127.0.0.1:' + server.address().port))
+server.listen(port, '127.0.0.1', () => {
+  console.log('http://127.0.0.1:' + server.address().port)
+  if (ownerCode) console.log('Привязка журнала: https://t.me/' + process.env.TELEGRAM_BOT_USERNAME + '?start=' + ownerCode)
+  void telegramLinks.pollTelegram((code, chatId) => {
+    if (ownerChat || code !== ownerCode) return false
+    db.prepare('INSERT INTO telegram_owner (id, chat_id) VALUES (1, ?)').run(String(chatId))
+    ownerChat = String(chatId)
+    telegram('Журнал действий подключён.', ownerChat)
+    return true
+  })
+})

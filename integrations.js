@@ -46,17 +46,23 @@ async function matchAnswer(question, answers) {
   return answers.find(answer => answer.id === id)
 }
 
-let telegramQueue = Promise.resolve()
-function telegram(text) {
-  const { TELEGRAM_BOT_TOKEN: token, TELEGRAM_CHAT_ID: chatId } = process.env
-  if (!token || !chatId) return
-  telegramQueue = telegramQueue.then(async () => {
-    const response = await fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text }), signal: AbortSignal.timeout(8000),
-    })
-    if (!response.ok) console.error('Telegram: HTTP ' + response.status)
-  }).catch(() => console.error('Telegram: ошибка соединения'))
+async function telegramApi(method, data, timeout = 8000) {
+  const response = await fetch('https://api.telegram.org/bot' + process.env.TELEGRAM_BOT_TOKEN + '/' + method, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data), signal: AbortSignal.timeout(timeout),
+  })
+  if (!response.ok) throw new Error('Telegram: HTTP ' + response.status)
+  const result = await response.json()
+  if (!result.ok) throw new Error('Telegram: ' + result.error_code)
+  return result.result
 }
 
-module.exports = { suggest, matchAnswer, telegram }
+let telegramQueue = Promise.resolve()
+function telegram(text, chatId = process.env.TELEGRAM_CHAT_ID) {
+  const token = process.env.TELEGRAM_BOT_TOKEN
+  if (!token || !chatId) return
+  telegramQueue = telegramQueue.then(() => telegramApi('sendMessage', { chat_id: chatId, text }))
+    .catch(error => console.error(error.message))
+}
+
+module.exports = { suggest, matchAnswer, telegram, telegramApi }

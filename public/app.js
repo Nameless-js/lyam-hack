@@ -45,6 +45,7 @@ function showRole() {
   $('workspace').hidden = !user
   $('stats-panel').hidden = user?.role !== 'admin'
   $('notifications').hidden = user?.role !== 'admin'
+  $('moderation').hidden = user?.role !== 'admin'
   $('telegram').hidden = user?.role !== 'admin'
   $('department-filter').hidden = user?.role !== 'admin'
 }
@@ -123,7 +124,7 @@ function renderChat() {
     $('case-details').innerHTML = '<h2>Обращение</h2><p class="muted">Здесь будут детали выбранного чата.</p>'
     return
   }
-  const active = Boolean(config.transitions[item.status])
+  const active = !item.moderated && Boolean(config.transitions[item.status])
   const admin = config.user.role === 'admin'
   const staff = config.user.role !== 'author'
   const events = [{ actor: item.authorName, text: item.description, time: item.created, label: 'Исходное обращение' }, ...item.history.slice(1)]
@@ -131,7 +132,7 @@ function renderChat() {
     <header class="chat-head">
       <span class="avatar">${escapeHtml(initials(item.authorName))}</span>
       <div><h2>${escapeHtml(item.authorName)}</h2><p>${item.number} · ${escapeHtml(item.category)}</p></div>
-      <span class="tag">${escapeHtml(item.status)}</span>
+      <span class="tag">${item.moderated ? 'На модерации' : escapeHtml(item.status)}</span>
     </header>
     <div class="messages">${events.map((event, index) => `
       <article class="message ${event.actor === item.authorName ? '' : 'staff-message'}">
@@ -146,7 +147,7 @@ function renderChat() {
         ${staff ? '<button class="secondary" type="button" data-chat-action="status">Изменить статус</button>' : ''}
       </div>
       <div class="compose-row"><textarea name="text" aria-label="Сообщение" placeholder="Написать сообщение…" maxlength="4000" required rows="2">${escapeHtml(drafts.get(item.id))}</textarea><button>Отправить</button></div>
-    </form>` : '<div class="composer muted">Обращение завершено</div>'}`
+    </form>` : '<div class="composer muted">' + (item.moderated ? 'Обращение ожидает проверки координатором.' : 'Обращение завершено') + '</div>'}`
   $('case-details').innerHTML = `
     <p class="eyebrow">КАРТОЧКА ${item.number}</p><h2>Об обращении</h2>
     <dl class="case-facts">
@@ -157,7 +158,9 @@ function renderChat() {
       <dt>Срок</dt><dd class="${item.overdue ? 'late' : ''}">${dateFormat.format(new Date(item.due))}${item.overdue ? ' · Просрочено' : ''}</dd>
     </dl>
     ${item.task ? '<section class="box"><h3>Поручение</h3><p class="copy">' + escapeHtml(item.task) + '</p></section>' : ''}
-    ${item.result ? '<section class="box"><h3>Итог</h3><p class="copy">' + escapeHtml(item.result) + '</p></section>' : ''}`
+    ${item.result ? '<section class="box"><h3>Итог</h3><p class="copy">' + escapeHtml(item.result) + '</p></section>' : ''}
+    ${item.rating ? '<section class="box"><h3>Оценка компании</h3><strong>' + item.rating.score + ' из 5</strong>' +
+      (item.rating.comment ? '<p class="copy">' + escapeHtml(item.rating.comment) + '</p>' : '') + '</section>' : ''}`
   const messages = $('chat').querySelector('.messages')
   messages.scrollTop = messages.scrollHeight
 }
@@ -231,13 +234,52 @@ $('dialog').addEventListener('submit', async event => {
     if (action === 'create') resetFilters()
     await refresh()
     if ($('dialog').open) $('dialog').close()
-    notice(action === 'create' ? 'Обращение подано.' : 'Изменения сохранены.')
+    if (action === 'create' && item.type === 'Положительный отзыв') showRating(item.id)
+    notice(item.moderated ? 'Обращение отправлено на модерацию.' :
+      action === 'create' ? 'Обращение подано.' : 'Изменения сохранены.')
   } catch (error) {
     const errorBox = $('dialog-error')
     if ($('dialog').open && errorBox) {
       errorBox.textContent = error.message
       errorBox.hidden = false
     } else notice(error.message, true)
+  } finally {
+    button.disabled = false
+  }
+})
+function showRating(caseId) {
+  const form = $('rating-form')
+  form.reset()
+  form.dataset.caseId = caseId
+  $('rating-error').hidden = true
+  $('rating-card').hidden = false
+  form.querySelector('input').focus({ preventScroll: true })
+}
+$('dismiss-rating').onclick = () => {
+  $('rating-card').hidden = true
+  $('new-case').focus({ preventScroll: true })
+}
+$('rating-form').addEventListener('submit', async event => {
+  event.preventDefault()
+  const form = event.currentTarget
+  const button = form.querySelector('button')
+  const caseId = Number(form.dataset.caseId)
+  const data = new FormData(form)
+  button.disabled = true
+  $('rating-error').hidden = true
+  try {
+    const { item, commentModerated } = await api('cases/' + caseId + '/rating', {
+      score: Number(data.get('score')), comment: data.get('comment'),
+    })
+    if (Number(form.dataset.caseId) !== caseId) return
+    $('rating-card').hidden = true
+    cases = cases.map(entry => entry.id === item.id ? item : entry)
+    draw()
+    notice(commentModerated ? 'Оценка сохранена. Комментарий отправлен на модерацию.' : 'Спасибо! Оценка сохранена.')
+  } catch (error) {
+    if (Number(form.dataset.caseId) !== caseId) return
+    $('rating-error').textContent = error.message
+    $('rating-error').hidden = false
   } finally {
     button.disabled = false
   }
@@ -273,7 +315,8 @@ $('chat').addEventListener('submit', async event => {
   button.disabled = true
   field.readOnly = true
   try {
-    await api('cases/' + id, { action: 'comment', text })
+    const item = await api('cases/' + id, { action: 'comment', text })
+    notice(item.messageModerated ? 'Сообщение отправлено на модерацию.' : '')
     if (drafts.get(id) === text) drafts.delete(id)
     await refresh()
     if (openId === id) $('composer')?.elements.text.focus()
@@ -316,6 +359,30 @@ async function checkInbox(show = false) {
     </article>`).join('') || '<p class="muted">Пока нет событий.</p>') + '</div>')
 }
 $('notifications').onclick = () => checkInbox(true).catch(error => notice(error.message, true))
+async function showModeration() {
+  const entries = await api('moderation')
+  modal('Спам и нарушения', '<div class="audit-list">' + (entries.map(entry => `
+    <article class="audit-entry">
+      <strong>${escapeHtml(entry.reason)} · ${escapeHtml(entry.number)}</strong>
+      <small>${escapeHtml(entry.author)} · ${timeFormat.format(new Date(entry.time))}</small>
+      <p class="copy">${escapeHtml(entry.text)}</p>
+      <button type="button" class="secondary" data-restore-case="${entry.caseId}" data-restore-id="${escapeHtml(entry.id)}">Вернуть ${entry.id === 'case' ? 'во входящие' : entry.kind === 'rating' ? 'к оценке' : 'в чат'}</button>
+    </article>`).join('') || '<p class="muted">На проверке ничего нет.</p>') + '</div>')
+}
+$('moderation').onclick = () => showModeration().catch(error => notice(error.message, true))
+$('dialog').addEventListener('click', async event => {
+  const button = event.target.closest('[data-restore-case]')
+  if (!button) return
+  button.disabled = true
+  try {
+    await api('moderation/' + button.dataset.restoreCase, { id: button.dataset.restoreId })
+    await refresh()
+    if ($('dialog').open && button.isConnected) await showModeration()
+  } catch (error) {
+    notice(error.message, true)
+    button.disabled = false
+  }
+})
 async function checkTelegram() {
   if (config?.user?.role !== 'admin') return
   const status = await api('telegram')
@@ -430,6 +497,8 @@ $('profile-form').addEventListener('submit', async event => {
   button.disabled = true
   try {
     config.user = await api('session', { profile: $('profile').value })
+    $('rating-card').hidden = true
+    delete $('rating-form').dataset.caseId
     resetFilters()
     drafts.clear()
     openId = null

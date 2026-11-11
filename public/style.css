@@ -118,5 +118,16 @@ main{max-width:1560px;padding-inline:clamp(12px,3vw,42px)}
 @keyframes tour-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes tour-pulse{from{outline-color:transparent}to{outline-color:#7766ef}}
 @media(prefers-reduced-motion:reduce){.tour-content,.tour-highlight{animation:none}}
+.rating-card{position:fixed;z-index:6;right:clamp(12px,3vw,32px);bottom:clamp(12px,3vh,28px);width:min(365px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;padding:16px;background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:0 12px 42px #18213b38;animation:tour-in .28s ease-out both}
+.rating-card h2{font-size:18px}
+.rating-card textarea{display:block;margin:5px 0 10px}
+.rating-stars{display:flex;gap:5px;padding:0;border:0;margin:0 0 12px;min-width:0}
+.rating-stars legend{padding:0;font-size:13px;color:var(--muted)}
+.rating-stars label{position:relative;display:grid;place-items:center;width:39px;height:39px;border-radius:8px;background:#f3f5fa;cursor:pointer}
+.rating-stars input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+.rating-stars span{font-size:24px;color:#748097;pointer-events:none}
+.rating-stars label:has(input:checked) span,.rating-stars label:has(~ label input:checked) span{color:#996200}
+.rating-stars label:has(input:focus-visible){outline:3px solid #7e92ff;outline-offset:2px}
+@media(prefers-reduced-motion:reduce){.rating-card{animation:none}}
 @media(max-width:960px){.inbox{grid-template-columns:minmax(190px,235px) minmax(0,1fr);height:auto}.inbox-left,.inbox-chat{height:560px}.inbox-right{grid-column:1/-1;border-left:0;border-top:1px solid var(--border)}.case-facts{display:grid;grid-template-columns:auto 1fr;gap:4px 12px}.case-facts dd{margin:0}}
 @media(max-width:620px){.inbox{grid-template-columns:1fr}.inbox-left{height:auto;border-right:0;border-bottom:1px solid var(--border)}#cases{max-height:185px}.inbox-chat{height:520px}.chat-head{flex-wrap:wrap}.chat-head .tag{margin-left:0}.compose-row button{font-size:12px;padding-inline:7px}}

@@ -10,7 +10,7 @@
 <body>
   <header class="top">
     <div class="brand"><span class="logo" aria-hidden="true">К</span><span>Контур<small>Обратная связь сотрудников</small></span></div>
-    <div class="header-actions"><button id="instructions" type="button" class="secondary">Инструкция</button><button id="notifications" type="button" class="secondary" hidden>Уведомления <span id="unread" hidden></span></button><button id="telegram" type="button" class="secondary" hidden>Подключить Telegram</button></div>
+    <div class="header-actions"><button id="instructions" type="button" class="secondary">Инструкция</button><button id="notifications" type="button" class="secondary" hidden>Уведомления <span id="unread" hidden></span></button><button id="moderation" type="button" class="secondary" hidden>Спам и нарушения</button><button id="telegram" type="button" class="secondary" hidden>Подключить Telegram</button></div>
     <form id="profile-form"><label for="profile">Демо-профиль</label><select id="profile" aria-label="Демо-профиль"></select><button type="submit" class="secondary">Войти</button></form>
   </header>
   <main id="main">
@@ -42,5 +42,25 @@
   </main>
   <dialog id="dialog"><div id="dialog-content"></div></dialog>
   <aside id="tour" class="tour" aria-label="Инструкция" hidden></aside>
+  <aside id="rating-card" class="rating-card" aria-labelledby="rating-title" hidden>
+    <div class="dialog-head">
+      <h2 id="rating-title">Вам нравится наша компания?</h2>
+      <button id="dismiss-rating" class="secondary" type="button" aria-label="Закрыть оценку">×</button>
+    </div>
+    <form id="rating-form">
+      <fieldset class="rating-stars">
+        <legend>Оцените от 1 до 5</legend>
+        <label><input type="radio" name="score" value="1" aria-label="1 из 5" required><span aria-hidden="true">★</span></label>
+        <label><input type="radio" name="score" value="2" aria-label="2 из 5"><span aria-hidden="true">★</span></label>
+        <label><input type="radio" name="score" value="3" aria-label="3 из 5"><span aria-hidden="true">★</span></label>
+        <label><input type="radio" name="score" value="4" aria-label="4 из 5"><span aria-hidden="true">★</span></label>
+        <label><input type="radio" name="score" value="5" aria-label="5 из 5"><span aria-hidden="true">★</span></label>
+      </fieldset>
+      <label for="rating-comment">Комментарий <small>необязательно</small></label>
+      <textarea id="rating-comment" name="comment" rows="3" maxlength="1000" placeholder="Что вам нравится или что можно улучшить?"></textarea>
+      <p id="rating-error" class="error" role="alert" hidden></p>
+      <button type="submit">Отправить оценку</button>
+    </form>
+  </aside>
 </body>
 </html>

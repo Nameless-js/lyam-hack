@@ -5,6 +5,7 @@ const { randomUUID } = require('node:crypto')
 const { DatabaseSync } = require('node:sqlite')
 const { suggest, matchAnswer, telegram } = require('./integrations')
 const telegramLinks = require('./telegram-links')
+const { review } = require('./moderation')
 
 const seed = require('./seed.json')
 const types = [...new Set(seed.map(item => item.type)), 'Просьба', 'Вопрос']
@@ -149,8 +150,9 @@ function pick(value, options, message) {
   return value
 }
 function view(item) {
+  const { heldMessages, moderationReason, ...visible } = item
   return {
-    ...item, number: caseNumber(item.id), authorName: getProfileName(item.author),
+    ...visible, moderated: Boolean(moderationReason), number: caseNumber(item.id), authorName: getProfileName(item.author),
     ownerName: getProfileName(item.owner), department: profileById.get(item.author).department,
     overdue: !terminal.has(item.status) && Date.parse(item.due) < Date.now(),
   }
@@ -238,6 +240,42 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { user, profiles, types, categories, statuses, priorities, departments, transitions })
     }
     if (!user) fail(401, 'Выберите демо-профиль.')
+    if (route === '/api/moderation' && req.method === 'GET') {
+      if (user.role !== 'admin') fail(403, 'Раздел доступен координатору.')
+      const entries = list.all().flatMap(row => {
+        const item = JSON.parse(row.data)
+        const held = item.heldMessages || []
+        const content = item.moderationReason
+          ? [{ id: 'case', text: item.description, reason: item.moderationReason, author: item.author, time: item.created }, ...held]
+          : held
+        return content.map(entry => ({ ...entry, caseId: item.id, number: caseNumber(item.id), author: getProfileName(entry.author) }))
+      })
+      return send(res, 200, entries.sort((a, b) => b.time.localeCompare(a.time)))
+    }
+    const restore = route.match(/^\/api\/moderation\/(\d+)$/)
+    if (restore && req.method === 'POST') {
+      if (user.role !== 'admin') fail(403, 'Раздел доступен координатору.')
+      const { id } = await body(req)
+      const row = select.get(Number(restore[1]))
+      if (!row) fail(404, 'Обращение не найдено.')
+      const item = JSON.parse(row.data)
+      if (id === 'case' && item.moderationReason) {
+        delete item.moderationReason
+        update.run(JSON.stringify(item), item.id)
+        audit(user, 'Возвращено из спама · ' + kind(item.type) + ' · ' + item.category, item.id, true)
+      } else {
+        const message = item.heldMessages?.find(entry => entry.id === id)
+        if (!message) fail(404, 'Сообщение уже обработано.')
+        const author = profileById.get(message.author)
+        if (message.kind === 'rating') item.rating.comment = message.text
+        else if (terminal.has(item.status)) record(item, author.name, 'Комментарий', message.text)
+        else edit(author, item, { action: 'comment', text: message.text })
+        item.heldMessages = item.heldMessages.filter(entry => entry.id !== id)
+        update.run(JSON.stringify(item), item.id)
+        audit(user, 'Восстановил сообщение', item.id)
+      }
+      return send(res, 200, { ok: true })
+    }
     if (route === '/api/telegram' && ['GET', 'POST', 'DELETE'].includes(req.method)) {
       if (user.role !== 'admin') fail(403, 'Подключение доступно координатору.')
       const binding = (req.headers.cookie || '').match(/(?:^|;\s*)telegram_binding=([\w-]+)/)?.[1]
@@ -260,14 +298,14 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { events: recentAudit.all(), unread: unreadAudit.get(after).count })
     }
     if (req.method === 'GET' && route === '/api/cases') {
-      return send(res, 200, list.all().map(row => JSON.parse(row.data)).filter(item => canRead(user, item)).map(view))
+      return send(res, 200, list.all().map(row => JSON.parse(row.data))
+        .filter(item => canRead(user, item) && (!item.moderationReason || item.author === user.id)).map(view))
     }
     if (req.method === 'POST' && route === '/api/cases') {
       if (user.role !== 'author') fail(403, 'Подать обращение может сотрудник.')
       const data = await body(req)
       const created = stamp()
       const item = {
-        id: maxId.get().id,
         type: pick(data.type, types, 'Выберите тип.'),
         category: pick(data.category, categories, 'Выберите категорию.'),
         priority: pick(data.priority, priorities, 'Выберите приоритет.'),
@@ -275,17 +313,43 @@ const server = http.createServer(async (req, res) => {
         author: user.id, owner: null, status: 'Новое', task: '', result: '',
         created, firstResponse: null, due: stamp(Date.now() + 4 * day), history: [],
       }
+      const reason = await review(user.id, item.description)
+      item.id = maxId.get().id
+      if (reason) item.moderationReason = reason
       record(item, user.name, 'Подано обращение', '', created)
       insert.run(item.id, JSON.stringify(item))
-      audit(user, 'Новое обращение · ' + kind(item.type) + ' · ' + item.category, item.id, true)
-      void answerQuestion(item)
+      if (reason) audit(user, 'Обращение отфильтровано', item.id)
+      else {
+        audit(user, 'Новое обращение · ' + kind(item.type) + ' · ' + item.category, item.id, true)
+        void answerQuestion(item)
+      }
       return send(res, 201, view(item))
     }
-    const extra = route.match(/^\/api\/cases\/(\d+)\/(open|suggest|knowledge)$/)
+    const extra = route.match(/^\/api\/cases\/(\d+)\/(open|suggest|knowledge|rating)$/)
     if (req.method === 'POST' && extra) {
       const row = select.get(Number(extra[1]))
       const item = row && JSON.parse(row.data)
-      if (!item || !canRead(user, item)) fail(404, 'Обращение не найдено.')
+      if (!item || !canRead(user, item) || (item.moderationReason && item.author !== user.id)) fail(404, 'Обращение не найдено.')
+      if (extra[2] === 'rating') {
+        if (item.author !== user.id || item.type !== 'Положительный отзыв') fail(403, 'Оценка доступна автору отзыва.')
+        if (item.rating) fail(409, 'Оценка уже сохранена.')
+        const { score, comment = '' } = await body(req)
+        if (!Number.isInteger(score) || score < 1 || score > 5) fail(400, 'Выберите оценку от 1 до 5.')
+        if (typeof comment !== 'string' || comment.length > 1000) fail(400, 'Комментарий должен быть не длиннее 1000 символов.')
+        const message = comment.trim()
+        const reason = message ? await review(user.id, message) : null
+        const current = JSON.parse(select.get(item.id).data)
+        if (current.rating) fail(409, 'Оценка уже сохранена.')
+        current.rating = { score, comment: reason ? '' : message }
+        if (reason) {
+          current.heldMessages = [...(current.heldMessages || []), {
+            id: randomUUID(), kind: 'rating', text: message, reason, author: user.id, time: stamp(),
+          }]
+        }
+        update.run(JSON.stringify(current), current.id)
+        audit(user, reason ? 'Оставил оценку · комментарий на модерации' : 'Оставил оценку компании', current.id)
+        return send(res, 201, { item: view(current), commentModerated: Boolean(reason) })
+      }
       if (extra[2] === 'open') {
         audit(user, 'Открыл чат', item.id)
         return send(res, 200, { ok: true })
@@ -326,8 +390,22 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && match) {
       const data = await body(req)
       const row = select.get(Number(match[1]))
-      const item = row && JSON.parse(row.data)
+      let item = row && JSON.parse(row.data)
       if (!item || !canRead(user, item)) fail(404, 'Обращение не найдено.')
+      if (item.moderationReason) fail(409, 'Обращение ожидает модерации.')
+      if (data.action === 'comment' && !terminal.has(item.status)) {
+        const message = required(data.text, 'Введите комментарий (до 4000 символов).')
+        const reason = await review(user.id, message)
+        item = JSON.parse(select.get(item.id).data)
+        if (!canRead(user, item)) fail(404, 'Обращение не найдено.')
+        if (terminal.has(item.status)) fail(409, 'Обращение уже завершено.')
+        if (reason) {
+          item.heldMessages = [...(item.heldMessages || []), { id: randomUUID(), text: message, reason, author: user.id, time: stamp() }]
+          update.run(JSON.stringify(item), item.id)
+          audit(user, 'Сообщение отфильтровано', item.id)
+          return send(res, 202, { ...view(item), messageModerated: true })
+        }
+      }
       edit(user, item, data)
       update.run(JSON.stringify(item), item.id)
       audit(user, { assign: 'Назначил исполнителя', status: 'Статус · ' + item.status, comment: 'Отправил сообщение' }[data.action], item.id)

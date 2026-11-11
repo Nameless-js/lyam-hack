@@ -46,6 +46,14 @@ async function matchAnswer(question, answers) {
   return answers.find(answer => answer.id === id)
 }
 
+async function moderate(text) {
+  const { reason } = await gemini(
+    'Модерация обращений сотрудников. Верни ровно одно значение: profanity для явного мата, insult для прямого оскорбления человека или группы, spam для бессмысленной рассылки или рекламы, clean в остальных случаях. Жалоба, критика работы, эмоциональная формулировка и нейтральное описание чужого нарушения допустимы.',
+    { text }, object({ reason: string }),
+  )
+  return ({ profanity: 'Нецензурная лексика', insult: 'Оскорбление', spam: 'Спам' })[reason] || null
+}
+
 async function telegramApi(method, data, timeout = 8000) {
   const response = await fetch('https://api.telegram.org/bot' + process.env.TELEGRAM_BOT_TOKEN + '/' + method, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -65,4 +73,4 @@ function telegram(text, chatId = process.env.TELEGRAM_CHAT_ID) {
     .catch(error => console.error(error.message))
 }
 
-module.exports = { suggest, matchAnswer, telegram, telegramApi }
+module.exports = { suggest, matchAnswer, moderate, telegram, telegramApi }

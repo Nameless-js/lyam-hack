@@ -3,28 +3,101 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#edf1f6">
   <title>Контур — обращения сотрудников</title>
   <link rel="stylesheet" href="/style.css">
+  <script src="/motion-14.12.0.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
+  <a class="skip-link" href="#main">К содержимому</a>
+  <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="icon-brand" viewBox="0 0 24 24"><path d="M20 11.5a6.5 6.5 0 0 1-6.5 6.5H11l-4.5 3v-3.6A6.5 6.5 0 0 1 9.5 5h4a6.5 6.5 0 0 1 6.5 6.5Z"/><path d="M9 11.5h6"/></symbol>
+    <symbol id="icon-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 4.1 2c-1 .8-1.6 1.1-1.6 2.5M12 17h.01"/></symbol>
+    <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></symbol>
+    <symbol id="icon-back" viewBox="0 0 24 24"><path d="M20 12H5m6 6-6-6 6-6"/></symbol>
+    <symbol id="icon-person" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1"/></symbol>
+    <symbol id="icon-inbox" viewBox="0 0 24 24"><path d="M4 13 7 5h10l3 8v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-5Z"/><path d="M4 13h5l1 2h4l1-2h5"/></symbol>
+    <symbol id="icon-check" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="m8.5 12 2.5 2.5 4.5-5"/></symbol>
+    <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="5.5"/><path d="m15 15 4 4"/></symbol>
+    <symbol id="icon-refresh" viewBox="0 0 24 24"><path d="M19 10a7 7 0 1 0 .1 4M19 5v5h-5"/></symbol>
+    <symbol id="icon-chevron" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+    <symbol id="icon-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="icon-tick" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="icon-bell" viewBox="0 0 24 24"><path d="M18 10a6 6 0 1 0-12 0c0 5-2 6-2 7h16c0-1-2-2-2-7Zm-8 10h4"/></symbol>
+    <symbol id="icon-shield" viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.5 3 7.7 7 10 4-2.3 7-5.5 7-10V6l-7-3Z"/><path d="M12 8v4m0 3h.01"/></symbol>
+    <symbol id="icon-send" viewBox="0 0 24 24"><path d="m3 10 18-7-7 18-3-8-8-3Zm8 3L21 3"/></symbol>
+    <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="icon-details" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8m-8 4h8m-8 4h5"/></symbol>
+    <symbol id="icon-spark" viewBox="0 0 24 24"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z"/></symbol>
+  </svg>
   <header class="top">
-    <div class="brand"><span class="logo" aria-hidden="true">К</span><span>Контур<small>Обратная связь сотрудников</small></span></div>
-    <div class="header-actions"><button id="instructions" type="button" class="secondary">Инструкция</button><button id="notifications" type="button" class="secondary" hidden>Уведомления <span id="unread" hidden></span></button><button id="moderation" type="button" class="secondary" hidden>Спам и нарушения</button><button id="telegram" type="button" class="secondary" hidden>Подключить Telegram</button></div>
-    <form id="profile-form"><label for="profile">Демо-профиль</label><select id="profile" aria-label="Демо-профиль"></select><button type="submit" class="secondary">Войти</button></form>
+    <div class="top-inner">
+      <div class="brand"><span class="logo"><svg class="icon" aria-hidden="true"><use href="#icon-brand"/></svg></span><span>Контур</span></div>
+      <span class="company">ГК «Модус Трейд»</span>
+      <button id="instructions" type="button" class="quiet" aria-haspopup="dialog"><svg class="icon" aria-hidden="true"><use href="#icon-help"/></svg>Инструкция</button>
+      <div id="profile-slot" hidden></div>
+    </div>
   </header>
-  <main id="main">
+  <main id="main" tabindex="-1">
     <p id="notice" role="status" hidden></p>
-    <section class="intro">
-      <div><p class="eyebrow">РАБОЧЕЕ ПРОСТРАНСТВО</p><h1 id="heading">Обращения сотрудников</h1><p id="subtitle">Выберите демо-профиль, чтобы открыть рабочее пространство.</p></div>
-      <button id="new-case" hidden>+ Новое обращение</button>
+    <section id="welcome">
+      <div class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Обратная связь сотрудников</p>
+          <h1>Обращения<br>сотрудников</h1>
+          <p class="hero-description">Задавайте вопросы, делитесь предложениями и следите за тем, как решаются ваши обращения.</p>
+          <div id="welcome-profile">
+            <form id="profile-form">
+              <span id="profile-label">Демо-профиль</span>
+              <input type="hidden" id="profile" name="profile">
+              <button type="button" id="profile-trigger" aria-labelledby="profile-label profile-trigger-label" aria-haspopup="dialog" aria-controls="profile-picker" disabled>
+                <svg class="icon" aria-hidden="true"><use href="#icon-person"/></svg>
+                <span id="profile-trigger-label">Выберите профиль</span>
+                <svg class="icon profile-chevron" aria-hidden="true"><use href="#icon-down"/></svg>
+              </button>
+              <button type="submit"><span id="profile-submit-label">Войти</span><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg></button>
+            </form>
+          </div>
+        </div>
+        <div class="hero-art" aria-hidden="true"></div>
+      </div>
+      <section class="role-section" aria-labelledby="roles-heading">
+        <h2 id="roles-heading">Роли в системе</h2>
+        <div class="role-grid">
+          <button class="role-card" type="button" data-role="author">
+            <span class="role-icon"><svg class="icon" aria-hidden="true"><use href="#icon-person"/></svg></span>
+            <span><strong>Сотрудник</strong><span>Подаёт обращения и получает ответы.</span></span>
+            <svg class="icon role-arrow" aria-hidden="true"><use href="#icon-chevron"/></svg>
+          </button>
+          <button class="role-card" type="button" data-role="admin">
+            <span class="role-icon"><svg class="icon" aria-hidden="true"><use href="#icon-inbox"/></svg></span>
+            <span><strong>Координатор</strong><span>Разбирает входящие и назначает исполнителей.</span></span>
+            <svg class="icon role-arrow" aria-hidden="true"><use href="#icon-chevron"/></svg>
+          </button>
+          <button class="role-card" type="button" data-role="owner">
+            <span class="role-icon"><svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg></span>
+            <span><strong>Исполнитель</strong><span>Уточняет детали и фиксирует результат.</span></span>
+            <svg class="icon role-arrow" aria-hidden="true"><use href="#icon-chevron"/></svg>
+          </button>
+        </div>
+      </section>
     </section>
-    <details id="stats-panel" class="stats-panel" hidden><summary>Сводка координатора</summary><section id="stats" class="stats" aria-label="Сводка"></section></details>
-    <section id="workspace" class="panel inbox" aria-label="Рабочее пространство" hidden>
+    <section class="intro" id="workspace-intro" hidden>
+      <div><p class="eyebrow" id="role-label"></p><h1 id="heading" tabindex="-1">Обращения сотрудников</h1><p id="subtitle"></p></div>
+      <div class="header-actions">
+        <button id="notifications" type="button" class="secondary" hidden><svg class="icon" aria-hidden="true"><use href="#icon-bell"/></svg>Уведомления <span id="unread" hidden></span></button>
+        <button id="moderation" type="button" class="secondary" hidden><svg class="icon" aria-hidden="true"><use href="#icon-shield"/></svg>Спам и нарушения</button>
+        <button id="telegram" type="button" class="secondary" hidden><svg class="icon" aria-hidden="true"><use href="#icon-send"/></svg><span id="telegram-label">Подключить Telegram</span></button>
+        <button id="new-case" type="button" hidden><svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>Новое обращение</button>
+      </div>
+    </section>
+    <details id="stats-panel" class="stats-panel" open hidden><summary>Сводка координатора</summary><section id="stats" class="stats" aria-label="Сводка"></section></details>
+    <section id="workspace" class="inbox" data-pane="list" aria-label="Рабочее пространство" hidden>
       <aside class="inbox-left" aria-label="Список чатов">
-        <div class="panel-head"><div><h2>Чаты</h2><span id="count"></span></div><button id="refresh" type="button" class="secondary" aria-label="Обновить список">↻</button></div>
+        <div class="panel-head"><div class="queue-title"><h2 id="queue-heading" tabindex="-1">Чаты</h2><span id="count" aria-live="polite"></span></div><button id="refresh" type="button" class="secondary icon-button" aria-label="Обновить список"><svg class="icon" aria-hidden="true"><use href="#icon-refresh"/></svg></button></div>
         <div id="filters" class="filters">
-          <input id="search" type="search" placeholder="Сотрудник, тема или номер" aria-label="Поиск чатов">
+          <div class="search-field"><svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg><input id="search" type="search" placeholder="Сотрудник, тема или номер" aria-label="Поиск чатов"></div>
           <select id="type-filter" aria-label="Тип обращения"></select>
           <details class="extra-filters">
             <summary>Ещё фильтры</summary>
@@ -40,8 +113,42 @@
       <aside id="case-details" class="inbox-right" aria-label="Детали обращения"></aside>
     </section>
   </main>
-  <dialog id="dialog"><div id="dialog-content"></div></dialog>
-  <aside id="tour" class="tour" aria-label="Инструкция" hidden></aside>
+  <dialog id="profile-picker" aria-labelledby="profile-picker-title">
+    <div class="profile-picker-head">
+      <div class="dialog-head">
+        <div class="profile-picker-title"><span class="role-icon"><svg class="icon" aria-hidden="true"><use href="#icon-person"/></svg></span><h2 id="profile-picker-title">Выберите профиль</h2></div>
+        <button type="button" id="close-profile-picker" class="quiet icon-button" aria-label="Закрыть выбор профиля">×</button>
+      </div>
+      <div class="search-field"><svg class="icon" aria-hidden="true"><use href="#icon-search"/></svg><input id="profile-search" type="search" placeholder="Поиск по профилям" aria-label="Поиск по профилям"></div>
+      <div id="profile-roles" role="group" aria-label="Роль">
+        <button type="button" data-profile-role="">Все</button>
+        <button type="button" data-profile-role="author">Сотрудники</button>
+        <button type="button" data-profile-role="admin">Координатор</button>
+        <button type="button" data-profile-role="owner">Исполнители</button>
+      </div>
+    </div>
+    <div id="profile-options"></div>
+  </dialog>
+  <dialog id="dialog" aria-labelledby="dialog-title"><div id="dialog-content"></div></dialog>
+  <dialog id="tour" aria-labelledby="tour-title" aria-describedby="tour-description">
+    <div id="tour-glass" aria-hidden="true"></div>
+    <div id="tour-card">
+      <div class="tour-header">
+        <span class="tour-icon"><svg class="icon" aria-hidden="true"><use href="#icon-help"/></svg></span>
+        <div><strong>Инструкция</strong><p id="tour-counter"></p></div>
+        <button type="button" class="quiet icon-button" data-tour="close" aria-label="Закрыть инструкцию">×</button>
+      </div>
+      <div id="tour-progress" aria-hidden="true"></div>
+      <div class="tour-copy" aria-live="polite" aria-atomic="true">
+        <h2 id="tour-title"></h2>
+        <p id="tour-description"></p>
+      </div>
+      <div class="tour-actions">
+        <button type="button" class="secondary" data-tour="back" hidden><svg class="icon" aria-hidden="true"><use href="#icon-back"/></svg>Назад</button>
+        <button type="button" data-tour="next" autofocus><span id="tour-next"></span><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg></button>
+      </div>
+    </div>
+  </dialog>
   <aside id="rating-card" class="rating-card" aria-labelledby="rating-title" hidden>
     <div class="dialog-head">
       <h2 id="rating-title">Вам нравится наша компания?</h2>

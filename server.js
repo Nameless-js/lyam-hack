@@ -213,6 +213,8 @@ const assets = {
   '/': ['index.html', 'text/html'],
   '/style.css': ['style.css', 'text/css'],
   '/app.js': ['app.js', 'text/javascript'],
+  '/motion-14.12.0.js': ['motion-14.12.0.js', 'text/javascript'],
+  '/hero.webp': ['hero.webp', 'image/webp'],
 }
 const server = http.createServer(async (req, res) => {
   try {

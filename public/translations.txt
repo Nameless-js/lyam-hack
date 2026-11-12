@@ -1,0 +1,430 @@
+Контур — обращения сотрудников|Kontur — Employee requests|Контур — Қызметкерлердің өтініштері
+Контур|Kontur|Контур
+ГК «Модус Трейд»|Modus Trade Group|«Модус Трейд» компаниялар тобы
+Язык сайта|Site language|Сайт тілі
+Русский|Russian|Орысша
+Казахский|Kazakh|Қазақша
+Английский|English|Ағылшынша
+К содержимому|Skip to content|Мазмұнға өту
+Инструкция|Guide|Нұсқаулық
+Обратная связь сотрудников|Employee feedback|Қызметкерлердің кері байланысы
+Обращения|Requests|Өтініштер
+сотрудников|from employees|қызметкерлерден
+Обращения сотрудников|Employee requests|Қызметкерлердің өтініштері
+Задавайте вопросы, делитесь предложениями и следите за тем, как решаются ваши обращения.|Ask questions, share suggestions, and track how your requests are handled.|Сұрақ қойыңыз, ұсыныс беріңіз және өтініштеріңіздің қалай қаралып жатқанын бақылаңыз.
+Демо-профиль|Demo profile|Демо-профиль
+Выберите профиль|Choose a profile|Профильді таңдаңыз
+Войти|Sign in|Кіру
+Сменить|Switch|Ауыстыру
+Роли в системе|Roles|Жүйедегі рөлдер
+Сотрудник|Employee|Қызметкер
+Подаёт обращения и получает ответы.|Submits requests and receives replies.|Өтініш жібереді және жауап алады.
+Координатор|Coordinator|Үйлестіруші
+Разбирает входящие и назначает исполнителей.|Reviews requests and assigns them.|Келіп түскен өтініштерді қарап, орындаушыларды тағайындайды.
+Исполнитель|Assignee|Орындаушы
+Уточняет детали и фиксирует результат.|Clarifies details and records the outcome.|Мәліметтерді нақтылап, нәтижені тіркейді.
+Уведомления|Notifications|Хабарландырулар
+Спам и нарушения|Spam and violations|Спам және бұзушылықтар
+Подключить Telegram|Connect Telegram|Telegram-ды қосу
+Новое обращение|New request|Жаңа өтініш
+Сводка координатора|Coordinator overview|Үйлестірушінің шолуы
+Сводка|Overview|Шолу
+Рабочее пространство|Workspace|Жұмыс кеңістігі
+Список чатов|Chat list|Чаттар тізімі
+Чаты|Chats|Чаттар
+Обновить список|Refresh list|Тізімді жаңарту
+Сотрудник, тема или номер|Employee, topic, or number|Қызметкер, тақырып немесе нөмір
+Поиск чатов|Search chats|Чаттарды іздеу
+Тип обращения|Request type|Өтініш түрі
+Ещё фильтры|More filters|Қосымша сүзгілер
+Статус|Status|Күйі
+Категория|Category|Санат
+Подразделение|Department|Бөлім
+Просроченные|Overdue|Мерзімі өткен
+Переписка|Conversation|Хат алмасу
+Детали обращения|Request details|Өтініш мәліметтері
+Закрыть выбор профиля|Close profile picker|Профиль таңдау терезесін жабу
+Поиск по профилям|Search profiles|Профильдерді іздеу
+Роль|Role|Рөл
+Все|All|Барлығы
+Сотрудники|Employees|Қызметкерлер
+Исполнители|Assignees|Орындаушылар
+Закрыть инструкцию|Close guide|Нұсқаулықты жабу
+Назад|Back|Артқа
+Вам нравится наша компания?|Do you like our company?|Біздің компания сізге ұнай ма?
+Закрыть оценку|Close rating|Бағалау терезесін жабу
+Оцените от 1 до 5|Rate from 1 to 5|1-ден 5-ке дейін бағалаңыз
+Комментарий|Comment|Пікір
+необязательно|optional|міндетті емес
+Что вам нравится или что можно улучшить?|What do you like, or what could be improved?|Сізге не ұнайды немесе нені жақсартуға болады?
+Отправить оценку|Submit rating|Бағаны жіберу
+Мои обращения|My requests|Менің өтініштерім
+Назначенные мне|Assigned to me|Маған тағайындалған
+Входящие обращения|Incoming requests|Келіп түскен өтініштер
+Обращения всех подразделений|Requests from all departments|Барлық бөлімдердің өтініштері
+Всего обращений|Total requests|Барлық өтініштер
+Без исполнителя|Unassigned|Орындаушысыз
+Завершены|Completed|Аяқталған
+Среднее время до реакции|Average response time|Жауап берудің орташа уақыты
+Новое|New|Жаңа
+На рассмотрении|Under review|Қаралуда
+Ожидает уточнения|Awaiting clarification|Нақтылау күтілуде
+В работе|In progress|Орындалуда
+Реализовано|Implemented|Іске асырылды
+Отклонено|Rejected|Қабылданбады
+Закрыто|Closed|Жабылды
+На модерации|Under moderation|Тексерілуде
+Обращений по этим условиям нет.|No requests match these filters.|Бұл сүзгілерге сай өтініштер жоқ.
+Здесь появятся обращения.|Requests will appear here.|Өтініштер осында көрсетіледі.
+Закрыть|Close|Жабу
+Срок|Deadline|Мерзім
+Выберите исполнителя|Choose an assignee|Орындаушыны таңдаңыз
+Поручение|Assignment|Тапсырма
+Сохранить назначение|Save assignment|Тағайындауды сақтау
+Новый статус|New status|Жаңа күй
+Выберите статус|Choose a status|Күйді таңдаңыз
+Вопрос автору или итог рассмотрения|Question for the author or review outcome|Авторға сұрақ немесе қарау нәтижесі
+Обновить статус|Update status|Күйді жаңарту
+Поручить обращение|Assign request|Өтінішті тапсыру
+Изменить статус|Change status|Күйді өзгерту
+Выберите обращение из списка.|Choose a request from the list.|Тізімнен өтінішті таңдаңыз.
+Обращение|Request|Өтініш
+Здесь будут детали выбранного чата.|Details of the selected chat will appear here.|Таңдалған чаттың мәліметтері осында көрсетіледі.
+Исходное обращение|Original request|Бастапқы өтініш
+Навигация по обращению|Request navigation|Өтініш бойынша навигация
+Все чаты|All chats|Барлық чаттар
+Карточка|Case|Карточка
+Вы|You|Сіз
+Сохранить как общий ответ|Save as a reusable answer|Ортақ жауап ретінде сақтау
+Рекомендация ИИ|AI suggestion|ЖИ ұсынымы
+Поручить|Assign|Тапсыру
+Сообщение|Message|Хабарлама
+Написать сообщение…|Write a message…|Хабарлама жазыңыз…
+Отправить сообщение|Send message|Хабарламаны жіберу
+Обращение ожидает проверки координатором.|The request is awaiting review by a coordinator.|Өтініш үйлестірушінің тексеруін күтуде.
+Обращение завершено|Request completed|Өтініш аяқталды
+Навигация по карточке|Case navigation|Карточка бойынша навигация
+К переписке|Back to conversation|Хат алмасуға оралу
+Об обращении|About this request|Өтініш туралы
+Тип|Type|Түрі
+Приоритет|Priority|Басымдық
+Просрочено|Overdue|Мерзімі өткен
+Итог|Outcome|Нәтиже
+Оценка компании|Company rating|Компания бағасы
+Сообщение отправляется|Sending message|Хабарлама жіберілуде
+Gemini готовит рекомендацию…|Gemini is preparing a suggestion…|Gemini ұсыным дайындауда…
+Подготовлено Gemini. Проверьте перед отправкой.|Prepared by Gemini. Review before sending.|Gemini дайындады. Жібермес бұрын тексеріңіз.
+Черновик ответа|Reply draft|Жауап нобайы
+Кандидат не предложен.|No assignee was suggested.|Орындаушы ұсынылмады.
+Вставить черновик|Insert draft|Нобайды енгізу
+Подготовить поручение|Prepare assignment|Тапсырманы дайындау
+Уберите детали конкретного случая. Gemini сможет использовать этот текст для будущих вопросов с тем же смыслом.|Remove case-specific details. Gemini can reuse this answer for similar questions.|Осы жағдайға тән мәліметтерді алып тастаңыз. Gemini бұл жауапты ұқсас сұрақтарға қолдана алады.
+Общий вопрос|General question|Жалпы сұрақ
+Утверждённый ответ|Approved answer|Бекітілген жауап
+Утвердить ответ|Approve answer|Жауапты бекіту
+Описание|Description|Сипаттама
+Что произошло или что предлагаете изменить?|What happened, or what would you like to change?|Не болды немесе нені өзгертуді ұсынасыз?
+Подать обращение|Submit request|Өтініш жіберу
+Общий ответ добавлен в базу знаний.|The reusable answer was added to the knowledge base.|Ортақ жауап білім қорына қосылды.
+Обращение отправлено на модерацию.|The request was sent for moderation.|Өтініш тексеруге жіберілді.
+Обращение подано.|Request submitted.|Өтініш жіберілді.
+Изменения сохранены.|Changes saved.|Өзгерістер сақталды.
+Оценка сохранена. Комментарий отправлен на модерацию.|Rating saved. The comment was sent for moderation.|Баға сақталды. Пікір тексеруге жіберілді.
+Спасибо! Оценка сохранена.|Thank you! Your rating was saved.|Рақмет! Бағаңыз сақталды.
+Сообщение отправлено на модерацию.|The message was sent for moderation.|Хабарлама тексеруге жіберілді.
+Список обновлён.|List refreshed.|Тізім жаңартылды.
+Уведомления и журнал|Notifications and activity log|Хабарландырулар мен әрекеттер журналы
+Пока нет событий.|No activity yet.|Әзірге әрекеттер жоқ.
+На проверке ничего нет.|Nothing is awaiting review.|Тексерілетін хабарлама жоқ.
+Telegram подключён|Telegram connected|Telegram қосылды
+Бот пока не настроен.|The bot has not been configured yet.|Бот әзірге бапталмаған.
+Бот присылает уведомления о новых обращениях.|The bot sends notifications about new requests.|Бот жаңа өтініштер туралы хабарлайды.
+Отключить|Disconnect|Ажырату
+Не удалось отключить Telegram.|Could not disconnect Telegram.|Telegram-ды ажырату мүмкін болмады.
+Откройте бота и нажмите «Старт». Ссылка действует пять минут.|Open the bot and tap Start. The link is valid for five minutes.|Ботты ашып, «Бастау» түймесін басыңыз. Сілтеме бес минут жарамды.
+Открыть бота в Telegram|Open bot in Telegram|Ботты Telegram-да ашу
+Выберите роль|Choose a role|Рөлді таңдаңыз
+Сотрудник отправляет обращения, координатор разбирает входящие, исполнитель работает с назначенными задачами.|Employees submit requests, coordinators review them, and assignees handle assigned tasks.|Қызметкер өтініш жібереді, үйлестіруші оны қарайды, орындаушы тағайындалған тапсырманы орындайды.
+Выберите тип, затем опишите, что произошло или какое улучшение предлагаете.|Choose a type, then describe what happened or suggest an improvement.|Түрін таңдап, не болғанын немесе қандай жақсарту ұсынатыныңызды сипаттаңыз.
+Найдите нужный чат|Find a chat|Қажетті чатты табыңыз
+Ищите по сотруднику, теме или номеру обращения. Фильтр по типу поможет найти, например, только жалобы.|Search by employee, topic, or request number. Use the type filter to show only complaints, for example.|Қызметкер, тақырып немесе өтініш нөмірі бойынша іздеңіз. Түр сүзгісі арқылы, мысалы, тек шағымдарды көруге болады.
+Откройте переписку|Open a conversation|Хат алмасуды ашыңыз
+В чате видны сообщения и история решений. Поле внизу отправляет сообщение участникам обращения.|The chat shows messages and past decisions. Use the field below to send a message to the participants.|Чатта хабарламалар мен шешімдер тарихы көрінеді. Төмендегі өріс арқылы қатысушыларға хабарлама жіберіңіз.
+Действия координатора|Coordinator actions|Үйлестіруші әрекеттері
+Gemini предлагает черновик ответа и кандидата. Здесь же можно назначить исполнителя или поменять статус.|Gemini suggests a reply and an assignee. You can also assign the request or change its status here.|Gemini жауап нобайын және орындаушыны ұсынады. Мұнда орындаушыны тағайындауға немесе күйді өзгертуге болады.
+Посмотрите детали|Review the details|Мәліметтерді қараңыз
+В карточке указаны исполнитель, срок, приоритет и итог работы.|The case shows the assignee, deadline, priority, and outcome.|Карточкада орындаушы, мерзім, басымдық және нәтиже көрсетілген.
+Проверьте входящие|Check incoming requests|Келіп түскен өтініштерді тексеріңіз
+Счётчик показывает новые обращения. Внутри уведомлений также есть журнал действий по демо-профилям.|The counter shows new requests. Notifications also include an activity log for demo profiles.|Санауыш жаңа өтініштерді көрсетеді. Хабарландырулар бөлімінде демо-профильдердің әрекеттер журналы да бар.
+Далее|Next|Келесі
+Готово|Done|Дайын
+Подходящих профилей нет.|No matching profiles.|Сәйкес профильдер табылмады.
+Все типы обращений|All request types|Өтініштің барлық түрлері
+Все статусы|All statuses|Барлық күйлер
+Все категории|All categories|Барлық санаттар
+Все подразделения|All departments|Барлық бөлімдер
+Проблема|Problem|Мәселе
+Предложение|Suggestion|Ұсыныс
+Жалоба|Complaint|Шағым
+Рекомендация|Suggestion|Ұсыныс
+Просьба|Request for help|Көмек сұрау
+Вопрос|Question|Сұрақ
+Другое|Other|Басқа
+Положительный отзыв|Positive feedback|Оң пікір
+Низкий|Low|Төмен
+Средний|Medium|Орташа
+Высокий|High|Жоғары
+Закупки|Procurement|Сатып алу
+Проектирование|Design|Жобалау
+Бухгалтерия|Accounting|Бухгалтерия
+Продажи|Sales|Сату
+Проектный отдел|Project department|Жоба бөлімі
+Администрация|Administration|Әкімшілік
+Без категории|Uncategorized|Санатсыз
+Договорная работа|Contracts|Шарттар
+Документооборот|Document workflow|Құжат айналымы
+Задачи и коммуникации|Tasks and communication|Тапсырмалар мен байланыс
+Знания и наставничество|Knowledge and mentoring|Білім және тәлімгерлік
+Интеграции и IT|Integrations and IT|Интеграциялар және АТ
+Информационная прозрачность|Information transparency|Ақпарат ашықтығы
+Каталог и данные|Catalog and data|Каталог және деректер
+Коммуникации|Communication|Байланыс
+Корпоративная среда|Work environment|Жұмыс ортасы
+Межотдельное взаимодействие|Interdepartmental collaboration|Бөлімдер арасындағы байланыс
+Обучение|Training|Оқыту
+Оперативность|Responsiveness|Жеделдік
+Планирование ресурсов|Resource planning|Ресурстарды жоспарлау
+Постановка задач|Task assignment|Тапсырма қою
+Проектная деятельность|Project work|Жобалық жұмыс
+Прозрачность результатов|Transparency of results|Нәтижелердің ашықтығы
+Регламенты|Procedures|Регламенттер
+Хранение документов|Document storage|Құжаттарды сақтау
+Координатор проекта|Project coordinator|Жоба үйлестірушісі
+Менеджер по продажам|Sales manager|Сату менеджері
+Руководитель проекта|Project lead|Жоба жетекшісі
+Сотрудник бухгалтерии|Accounting employee|Бухгалтерия қызметкері
+Сотрудник закупок|Procurement employee|Сатып алу бөлімінің қызметкері
+Сотрудник офиса|Office employee|Кеңсе қызметкері
+Сотрудник проектирования|Design employee|Жобалау бөлімінің қызметкері
+Административный руководитель|Administration lead|Әкімшілік жетекшісі
+Администратор документов|Document administrator|Құжат әкімшісі
+Ответственный за договоры|Contracts officer|Шарттарға жауапты маман
+Ответственный за номенклатуру|Catalog officer|Номенклатураға жауапты маман
+Ответственный за обучение|Training officer|Оқытуға жауапты маман
+Ответственный за процессы|Process officer|Үдерістерге жауапты маман
+Руководитель бухгалтерии|Head of accounting|Бухгалтерия басшысы
+Руководитель закупок|Head of procurement|Сатып алу бөлімінің басшысы
+Руководитель направления|Business area lead|Бағыт жетекшісі
+Руководитель подразделения|Department head|Бөлім басшысы
+Руководитель продаж|Head of sales|Сату бөлімінің басшысы
+Руководитель проектирования|Head of design|Жобалау бөлімінің басшысы
+Руководитель проектов|Head of projects|Жобалар жетекшісі
+HR / внутренние коммуникации|HR / internal communications|HR / ішкі байланыс
+IT-специалист|IT specialist|АТ маманы
+Гость|Guest|Қонақ
+База знаний|Knowledge base|Білім қоры
+Система|System|Жүйе
+Подано обращение|Request submitted|Өтініш жіберілді
+Назначено|Assigned|Тағайындалды
+Автор ответил на запрос уточнения.|The author replied to the clarification request.|Автор нақтылау сұрауына жауап берді.
+Автоответ|Automatic reply|Автоматты жауап
+утверждено координатором|approved by the coordinator|үйлестіруші бекіткен
+Открыл сайт|Opened the site|Сайтты ашты
+Вошёл в демо-профиль|Signed in to a demo profile|Демо-профильге кірді
+Открыл чат|Opened a chat|Чатты ашты
+Отправил сообщение|Sent a message|Хабарлама жіберді
+Назначил исполнителя|Assigned a request|Орындаушы тағайындады
+Отправлен автоответ|Automatic reply sent|Автоматты жауап жіберілді
+Утвердил общий ответ|Approved a reusable answer|Ортақ жауапты бекітті
+Запросил рекомендацию Gemini|Requested a Gemini suggestion|Gemini ұсынымын сұрады
+Возвращено из спама|Restored from spam|Спамнан қайтарылды
+Восстановил сообщение|Restored a message|Хабарламаны қалпына келтірді
+Обращение отфильтровано|Request filtered|Өтініш сүзілді
+Сообщение отфильтровано|Message filtered|Хабарлама сүзілді
+Оставил оценку компании|Rated the company|Компанияны бағалады
+Оставил оценку|Submitted a rating|Баға жіберді
+комментарий на модерации|comment awaiting moderation|пікір тексерілуде
+Нецензурная лексика|Profanity|Бейәдеп сөздер
+Оскорбление|Insult|Қорлау
+Спам|Spam|Спам
+Повтор сообщения|Duplicate message|Қайталанған хабарлама
+Слишком много отправок за минуту|Too many submissions in one minute|Бір минутта тым көп хабарлама жіберілді
+Внутренняя ошибка.|An internal error occurred.|Ішкі қате орын алды.
+Не удалось выполнить запрос.|The request could not be completed.|Сұрауды орындау мүмкін болмады.
+Не удалось получить ответ Gemini.|Could not get a reply from Gemini.|Gemini жауабын алу мүмкін болмады.
+Переводится…|Translating…|Аударылуда…
+Перевод пока недоступен.|Translation is currently unavailable.|Аударма әзірге қолжетімсіз.
+Показать оригинал|Show original|Түпнұсқаны көрсету
+Слишком большой запрос.|Request is too large.|Сұрау тым үлкен.
+Некорректный запрос.|Invalid request.|Жарамсыз сұрау.
+Обращение уже завершено.|This request is already completed.|Бұл өтініш аяқталған.
+Назначить исполнителя может координатор.|Only a coordinator can assign a request.|Өтінішті тек үйлестіруші тапсыра алады.
+Выберите исполнителя.|Choose an assignee.|Орындаушыны таңдаңыз.
+Опишите поручение (до 4000 символов).|Describe the assignment in up to 4,000 characters.|Тапсырманы 4000 таңбаға дейін сипаттаңыз.
+Укажите срок.|Enter a deadline.|Мерзімді көрсетіңіз.
+Изменить статус может координатор или исполнитель.|Only the coordinator or assignee can change the status.|Күйді үйлестіруші немесе орындаушы өзгерте алады.
+Недопустимый переход статуса.|This status change is not allowed.|Күйді бұлай өзгертуге болмайды.
+Сначала назначьте исполнителя.|Assign someone first.|Алдымен орындаушыны тағайындаңыз.
+Укажите итог, причину отказа или вопрос автору.|Enter the outcome, rejection reason, or a question for the author.|Нәтижені, бас тарту себебін немесе авторға сұрақты енгізіңіз.
+Введите комментарий (до 4000 символов).|Enter a comment of up to 4,000 characters.|4000 таңбаға дейін пікір жазыңыз.
+Неизвестное действие.|Unknown action.|Белгісіз әрекет.
+Выберите тестовую роль.|Choose a demo role.|Демо-рөлді таңдаңыз.
+Выберите демо-профиль.|Choose a demo profile.|Демо-профильді таңдаңыз.
+Раздел доступен координатору.|This section is available to coordinators.|Бұл бөлім үйлестірушілерге қолжетімді.
+Обращение не найдено.|Request not found.|Өтініш табылмады.
+Сообщение уже обработано.|This message has already been reviewed.|Бұл хабарлама қаралып қойған.
+Подключение доступно координатору.|Only a coordinator can connect Telegram.|Telegram-ды үйлестіруші қоса алады.
+Telegram пока не настроен.|Telegram has not been configured yet.|Telegram әзірге бапталмаған.
+Журнал доступен координатору.|The activity log is available to coordinators.|Әрекеттер журналы үйлестірушілерге қолжетімді.
+Подать обращение может сотрудник.|Only an employee can submit a request.|Өтінішті қызметкер жібере алады.
+Выберите тип.|Choose a type.|Түрін таңдаңыз.
+Выберите категорию.|Choose a category.|Санатты таңдаңыз.
+Выберите приоритет.|Choose a priority.|Басымдықты таңдаңыз.
+Опишите обращение (до 4000 символов).|Describe your request in up to 4,000 characters.|Өтінішті 4000 таңбаға дейін сипаттаңыз.
+Оценка доступна автору отзыва.|Only the feedback author can submit a rating.|Бағаны пікір авторы ғана бере алады.
+Оценка уже сохранена.|A rating has already been saved.|Баға сақталып қойған.
+Выберите оценку от 1 до 5.|Choose a rating from 1 to 5.|1-ден 5-ке дейін баға таңдаңыз.
+Комментарий должен быть не длиннее 1000 символов.|The comment must be 1,000 characters or fewer.|Пікір 1000 таңбадан аспауы керек.
+Действие доступно координатору.|This action is available to coordinators.|Бұл әрекет үйлестірушілерге қолжетімді.
+Выберите сообщение координатора.|Choose a coordinator message.|Үйлестірушінің хабарламасын таңдаңыз.
+Укажите общий вопрос.|Enter a general question.|Жалпы сұрақты енгізіңіз.
+Укажите общий ответ.|Enter a reusable answer.|Ортақ жауапты енгізіңіз.
+Обращение ожидает модерации.|The request is awaiting moderation.|Өтініш тексеруді күтуде.
+Страница не найдена.|Page not found.|Бет табылмады.
+Заполните это поле.|Fill in this field.|Бұл өрісті толтырыңыз.
+Выберите один вариант.|Choose an option.|Бір нұсқаны таңдаңыз.
+Аналитика|Analytics|Талдау
+К обращениям|Back to requests|Өтініштерге оралу
+Скачать отчёт PDF|Download PDF report|PDF есебін жүктеу
+Открытые обращения|Open requests|Ашық өтініштер
+Обращения по типам|Requests by type|Өтініштер түрі бойынша
+Обращения по статусам|Requests by status|Өтініштер күйі бойынша
+Пока нет обращений для анализа.|There are no requests to analyze yet.|Талдауға арналған өтініштер әзірге жоқ.
+Отчёт по обращениям|Request report|Өтініштер туралы есеп
+Всего|Count|Саны
+Не удалось подготовить PDF.|Could not create the PDF report.|PDF есебін дайындау мүмкін болмады.
+Автор|Author|Автор
+Анонимный сотрудник|Anonymous employee|Аты-жөні жасырылған қызметкер
+Как отправить|How to submit|Жіберу тәсілі
+От моего имени|Under my name|Өз атымнан
+Анонимно|Anonymously|Анонимді түрде
+Выберите язык сайта|Choose the site language|Сайт тілін таңдаңыз
+Можно переключаться между русским, казахским и английским.|You can switch between Russian, Kazakh, and English.|Орысша, қазақша және ағылшынша тілдер арасында ауыса аласыз.
+Инструкция для сотрудника|Employee guide|Қызметкерге арналған нұсқаулық
+Инструкция для координатора|Coordinator guide|Үйлестірушіге арналған нұсқаулық
+Инструкция для исполнителя|Assignee guide|Орындаушыға арналған нұсқаулық
+Выберите тип и опишите ситуацию. Для темы, которой нет в списке, выберите «Другое».|Choose a type and describe the situation. If your topic is not listed, choose Other.|Түрін таңдап, жағдайды сипаттаңыз. Тақырыбыңыз тізімде болмаса, «Басқа» түрін таңдаңыз.
+Выберите способ отправки|Choose how to submit|Жіберу тәсілін таңдаңыз
+В форме можно отправить обращение от своего имени или анонимно. При анонимной подаче имя и подразделение скрыты, а ответы доступны в вашем чате.|Submit under your name or anonymously. Anonymous requests hide your name and department, and replies appear in your chat.|Өтінішті өз атыңыздан немесе анонимді түрде жібере аласыз. Анонимді өтініште атыңыз бен бөліміңіз жасырылып, жауаптар чатыңызда көрсетіледі.
+Задайте простой вопрос|Ask a simple question|Қарапайым сұрақ қойыңыз
+Выберите тип «Вопрос». Если в базе знаний есть подходящий утверждённый ответ, он появится в чате автоматически.|Choose Question. If the knowledge base has a matching approved answer, it appears in the chat automatically.|«Сұрақ» түрін таңдаңыз. Білім қорында сәйкес бекітілген жауап болса, ол чатта автоматты түрде көрсетіледі.
+Оцените компанию|Rate the company|Компанияны бағалаңыз
+После отправки положительного отзыва в углу появится окно. Выберите от 1 до 5 звёзд и при желании добавьте комментарий.|A rating window appears in the corner after you send positive feedback. Choose 1 to 5 stars and optionally add a comment.|Оң пікір жібергеннен кейін бұрышта бағалау терезесі ашылады. 1-ден 5-ке дейін жұлдыз таңдап, қаласаңыз пікір жазыңыз.
+Найдите своё обращение|Find your request|Өтінішіңізді табыңыз
+Ищите по теме или номеру. Фильтры помогут найти нужный тип или статус.|Search by topic or number. Use filters to narrow the list by type or status.|Тақырып немесе нөмір бойынша іздеңіз. Қажетті түрді немесе күйді табу үшін сүзгілерді пайдаланыңыз.
+Разберите обращение|Review a request|Өтінішті қараңыз
+В чате видны сообщения и история. У анонимных обращений имя и подразделение автора скрыты.|The chat shows messages and history. Anonymous requests hide the author's name and department.|Чатта хабарламалар мен тарих көрсетіледі. Анонимді өтініштерде автордың аты мен бөлімі жасырылған.
+Используйте рекомендацию ИИ|Use the AI suggestion|ЖИ ұсынымын пайдаланыңыз
+Gemini предлагает черновик ответа, поручение и исполнителя. Проверьте предложение перед отправкой.|Gemini suggests a reply, assignment and assignee. Review the suggestion before sending.|Gemini жауап нобайын, тапсырманы және орындаушыны ұсынады. Жібермес бұрын ұсынымды тексеріңіз.
+Назначьте исполнителя|Assign the request|Орындаушыны тағайындаңыз
+Нажмите «Поручить», выберите исполнителя и укажите срок. Кнопка «Изменить статус» позволяет запросить уточнение или зафиксировать итог.|Click Assign, choose an assignee and set a deadline. Use Change status to ask for clarification or record the outcome.|«Тапсыру» түймесін басып, орындаушыны және мерзімді таңдаңыз. «Күйді өзгерту» арқылы нақтылау сұрауға немесе нәтижені тіркеуге болады.
+Сохраните ответ в базу знаний|Save an answer to the knowledge base|Жауапты білім қорына сақтаңыз
+Под своим сообщением нажмите «Сохранить как общий ответ». Утверждённый ответ можно использовать для похожих вопросов.|Click Save as a reusable answer under your message. The approved answer can be reused for similar questions.|Хабарламаңыздың астындағы «Ортақ жауап ретінде сақтау» түймесін басыңыз. Бекітілген жауапты ұқсас сұрақтарға қолдануға болады.
+Проверьте спам|Review spam|Спамды тексеріңіз
+Откройте «Спам и нарушения», чтобы увидеть причину фильтрации. Ошибочно отфильтрованный текст можно вернуть во входящие или в чат.|Open Spam and violations to see why text was filtered. You can restore items that were flagged by mistake to the inbox or chat.|Сүзгілеу себебін көру үшін «Спам және бұзушылықтар» бөлімін ашыңыз. Қате сүзілген мәтінді кіріс жәшігіне немесе чатқа қайтаруға болады.
+Подключите Telegram|Connect Telegram|Telegram-ды қосыңыз
+Откройте бота по ссылке и нажмите «Старт». В Telegram будут приходить новые обращения с полным текстом.|Open the bot using the link and tap Start. Telegram will deliver new requests with their full text.|Сілтеме арқылы ботты ашып, «Бастау» түймесін басыңыз. Жаңа өтініштер толық мәтінімен Telegram-ға келеді.
+Откройте аналитику|Open analytics|Талдауды ашыңыз
+Посмотрите сводку и круговую диаграмму по типам обращений. Наведите на сектор или коснитесь его, чтобы увидеть количество и долю. Отчёт можно скачать в PDF.|View the summary and pie chart by request type. Hover over or tap a slice to see its count and share. You can download the report as a PDF.|Шолуды және өтініш түрлері бойынша дөңгелек диаграмманы қараңыз. Саны мен үлесін көру үшін секторға меңзерді апарыңыз немесе түртіңіз. Есепті PDF түрінде жүктеуге болады.
+Посмотрите оценку компании|View the company rating|Компания бағасын қараңыз
+Оценка и комментарий сотрудника появятся в карточке положительного отзыва.|The employee's rating and comment appear in the positive feedback case.|Қызметкердің бағасы мен пікірі оң пікір карточкасында көрсетіледі.
+Найдите назначенное обращение|Find an assigned request|Тағайындалған өтінішті табыңыз
+Используйте поиск и фильтры, чтобы найти нужное поручение.|Use search and filters to find the assignment.|Қажетті тапсырманы іздеу және сүзгілер арқылы табыңыз.
+Обновите статус работы|Update the work status|Жұмыс күйін жаңартыңыз
+Запросите уточнение у автора или укажите итог, когда работа завершена.|Ask the author for clarification or record the outcome when the work is complete.|Автордан нақтылау сұраңыз немесе жұмыс аяқталғанда нәтижені көрсетіңіз.
+Изучите диаграмму|Explore the chart|Диаграмманы қараңыз
+Выберите сектор диаграммы или строку в легенде. Подсказка покажет тип обращения, количество и долю.|Select a chart slice or a legend row. The tooltip shows the request type, count and share.|Диаграмма секторын немесе түсіндірмедегі жолды таңдаңыз. Қалқымалы мәтінде өтініш түрі, саны және үлесі көрсетіледі.
+Скачайте отчёт|Download the report|Есепті жүктеңіз
+PDF содержит круговую диаграмму, общие показатели и разбивку по статусам на выбранном языке.|The PDF includes the pie chart, summary metrics and a status breakdown in the selected language.|PDF есебінде таңдалған тілде дөңгелек диаграмма, жалпы көрсеткіштер және күйлер бойынша бөлініс бар.
+На каждой странице есть своя инструкция.|Each page has its own guide.|Әр беттің өз нұсқаулығы бар.
+Обращение с нарушениями перемещено в спам.|A request that violated the rules was moved to spam.|Ережені бұзған өтініш спамға жіберілді.
+Сообщение с нарушениями перемещено в спам.|A message that violated the rules was moved to spam.|Ережені бұзған хабарлама спамға жіберілді.
+Открыть спам|Open spam|Спамды ашу
+Ответить автору|Reply to the author|Авторға жауап беру
+Удалить чат|Delete chat|Чатты жою
+Весь чат исчезнет у автора, координатора и исполнителя.|The entire chat will be removed from the author, coordinator, and assignee views.|Бүкіл чат автордың, үйлестірушінің және орындаушының тізімінен алынады.
+Ответ по модерации|Moderation reply|Тексеру бойынша жауап
+Ответил по модерации|Sent a moderation reply|Тексеру бойынша жауап жіберді
+Удалил чат из спама|Deleted a spam chat|Спамдағы чатты жойды
+Ответ отправлен автору.|Reply sent to the author.|Жауап авторға жіберілді.
+Чат удалён.|Chat deleted.|Чат жойылды.
+В разделе «Спам и нарушения» можно прочитать исходный текст, ответить автору, вернуть сообщение или удалить чат.|In Spam and violations, you can read the original text, reply to the author, restore the message, or delete the chat.|«Спам және бұзушылықтар» бөлімінде түпнұсқа мәтінді оқуға, авторға жауап беруге, хабарламаны қайтаруға немесе чатты жоюға болады.
+Вам помогли?|Did this help?|Бұл шешім сізге көмектесті ме?
+Оценить решение|Rate the resolution|Шешімді бағалау
+Оценка решения|Resolution rating|Шешім бағасы
+Что помогло или что ещё нужно решить?|What helped, or what still needs to be resolved?|Не көмектесті немесе әлі нені шешу керек?
+Оценка решения доступна автору после завершения обращения.|The author can rate the resolution once the request is completed.|Өтініш аяқталғаннан кейін автор шешімді бағалай алады.
+Оценил решение обращения|Rated the resolution|Өтініш шешімін бағалады
+Число оценок|Number of ratings|Бағалар саны
+1–2 звезды|1–2 stars|1–2 жұлдыз
+Без комментария|No comment|Пікір жоқ
+Оценок в 1–2 звезды пока нет.|There are no 1–2 star ratings yet.|Әзірге 1–2 жұлдыздық бағалар жоқ.
+После выполнения обращения ответьте на вопрос «Вам помогли?». Поставьте от 1 до 5 звёзд и при желании напишите, что ещё нужно решить.|Once a request is resolved, answer Did this help? Choose 1 to 5 stars and optionally say what still needs to be resolved.|Өтініш орындалғаннан кейін «Бұл шешім сізге көмектесті ме?» деген сұраққа жауап беріңіз. 1-ден 5-ке дейін жұлдыз қойып, қаласаңыз, тағы нені шешу керегін жазыңыз.
+Нажмите на сектор диаграммы или строку в легенде, чтобы открыть список обращений этого типа. В списке видны статусы и просрочки.|Click a chart slice or legend row to open requests of that type. The list shows statuses and overdue requests.|Сол түрдегі өтініштер тізімін ашу үшін диаграмма секторын немесе түсіндірмедегі жолды басыңыз. Тізімде күйлер мен мерзімі өткен өтініштер көрсетіледі.
+Проверьте оценки|Review ratings|Бағаларды тексеріңіз
+Оценки компании и решений показаны отдельно. Раскройте «1–2 звезды», чтобы прочитать комментарии.|Company and resolution ratings are shown separately. Expand 1–2 stars to read the comments.|Компания мен шешім бағалары бөлек көрсетіледі. Пікірлерді оқу үшін «1–2 жұлдыз» бөлімін ашыңыз.
+Открыть переписку|Open conversation|Хат алмасуды ашу
+Все оценки|All ratings|Барлық бағалар
+Оценок пока нет.|No ratings yet.|Әзірге баға жоқ.
+Все обращения|All requests|Барлық өтініштер
+Фото или видео|Photo or video|Фото немесе бейне
+Записать голос|Record voice|Дауысты жазу
+Убрать вложение|Remove attachment|Тіркемені алып тастау
+Не удалось прочитать вложение.|Could not read the attachment.|Тіркемені оқу мүмкін болмады.
+Фото во вложении|Attached photo|Тіркелген фото
+Видео во вложении|Attached video|Тіркелген бейне
+Запись голоса недоступна в этом браузере.|Voice recording is unavailable in this browser.|Бұл браузерде дауыс жазу қолжетімсіз.
+Формат записи не поддерживается.|This recording format is unsupported.|Бұл жазба пішіміне қолдау көрсетілмейді.
+Не удалось записать голос.|Could not record audio.|Дауысты жазу мүмкін болмады.
+Расшифровываем запись…|Transcribing the recording…|Жазба мәтінге айналдырылуда…
+Не удалось расшифровать запись.|Could not transcribe the recording.|Жазбаны мәтінге айналдыру мүмкін болмады.
+Текст сокращён до допустимой длины.|The text was shortened to the allowed length.|Мәтін рұқсат етілген ұзындыққа дейін қысқартылды.
+Текст можно отредактировать перед отправкой.|You can edit the text before sending.|Мәтінді жібермес бұрын өңдей аласыз.
+Остановить запись|Stop recording|Жазуды тоқтату
+Идёт запись, до 60 секунд.|Recording, up to 60 seconds.|Жазылып жатыр, 60 секундқа дейін.
+Разрешите доступ к микрофону.|Allow microphone access.|Микрофонға рұқсат беріңіз.
+Можно прикрепить не больше трёх файлов.|You can attach up to three files.|Үш файлға дейін тіркей аласыз.
+Прикрепите фото или видео поддерживаемого формата.|Attach a photo or video in a supported format.|Қолдау көрсетілетін пішімдегі фото немесе бейне тіркеңіз.
+Общий размер вложений не должен превышать 12 МБ.|Total attachment size must be 12 MB or less.|Тіркемелердің жалпы көлемі 12 МБ-тан аспауы керек.
+Дождитесь окончания расшифровки.|Wait for the transcription to finish.|Мәтінге айналдырудың аяқталуын күтіңіз.
+Запись пуста.|The recording is empty.|Жазба бос.
+В записи не удалось распознать речь.|No speech could be recognized in the recording.|Жазбадағы сөйлеуді тану мүмкін болмады.
+Вложение не найдено.|Attachment not found.|Тіркеме табылмады.
+Добавьте голос, фото или видео|Add voice, photos, or video|Дауыс, фото немесе бейне қосыңыз
+Нажмите «Записать голос», чтобы получить редактируемый текст. Через «Фото или видео» можно добавить до трёх файлов общим размером до 12 МБ.|Click Record voice to get editable text. Use Photo or video to attach up to three files totaling 12 MB.|Өңделетін мәтін алу үшін «Дауысты жазу» түймесін басыңыз. «Фото немесе бейне» арқылы жалпы көлемі 12 МБ-қа дейінгі үш файлды қоса аласыз.
+Повторяющиеся проблемы|Recurring problems|Қайталанатын мәселелер
+Похожие формулировки|Similar reports|Ұқсас шағымдар
+Проверяем, какие проблемы повторяются…|Checking for recurring problems…|Қайталанатын мәселелер тексерілуде…
+Повторяющиеся проблемы пока не найдены.|No recurring problems found yet.|Әзірге қайталанатын мәселелер табылмады.
+Принятое решение|Recorded decision|Қабылданған шешім
+Решение ещё не зафиксировано.|No decision has been recorded yet.|Шешім әлі тіркелмеген.
+Изменить приоритет|Change priority|Басымдықты өзгерту
+Сохранить приоритет|Save priority|Басымдықты сақтау
+Изменить приоритет может координатор.|Only a coordinator can change the priority.|Басымдықты үйлестіруші ғана өзгерте алады.
+Приоритет изменён|Priority changed|Басымдық өзгертілді
+Укажите приоритет|Set the priority|Басымдықты көрсетіңіз
+Выберите P1 для срочного обращения, P2 для обычного или P3 для низкого приоритета.|Choose P1 for urgent requests, P2 for standard ones, or P3 for low priority.|Шұғыл өтінішке P1, қалыптысына P2, басымдығы төмен өтінішке P3 таңдаңыз.
+Найдите повторяющиеся проблемы|Find recurring problems|Қайталанатын мәселелерді табыңыз
+Откройте вкладку, чтобы увидеть похожие жалобы и решения, сохранённые по каждой из них.|Open this tab to see similar complaints and the decisions recorded for each.|Ұқсас шағымдар мен әрқайсысына тіркелген шешімдерді көру үшін қойындыны ашыңыз.
+Откройте группу и раскройте обращение, чтобы прочитать жалобу и принятое решение.|Open a group and expand a request to read the complaint and its recorded decision.|Шағым мен қабылданған шешімді оқу үшін топты ашып, өтінішті жайыңыз.
+Статусы обращений, просрочки и оценки сотрудников|Request statuses, overdue work, and employee ratings|Өтініш күйлері, мерзімі өткен жұмыстар және қызметкерлер бағалары
+Здесь можно проверить просрочки, открыть обращения по типу или статусу, посмотреть оценки и скачать отчёт.|Review overdue requests, open requests by type or status, view ratings, and download the report.|Мерзімі өткен өтініштерді тексеріңіз, өтініштерді түрі немесе күйі бойынша ашыңыз, бағаларды көріп, есепті жүктеңіз.
+Оцените нагрузку|Review the workload|Жүктемені бағалаңыз
+Сводка показывает общее число обращений, сколько из них открыты, завершены или просрочены.|The summary shows the total number of requests and how many are open, completed, or overdue.|Шолуда өтініштердің жалпы саны және ашық, аяқталған немесе мерзімі өткен өтініштер саны көрсетіледі.
+Нажмите на сектор диаграммы или строку в легенде, чтобы открыть список обращений этого типа. Нажмите на обращение, чтобы прочитать текст.|Click a chart slice or legend row to open requests of that type. Click a request to read its text.|Сол түрдегі өтініштер тізімін ашу үшін диаграмма секторын немесе түсіндірмедегі жолды басыңыз. Мәтінді оқу үшін өтінішті басыңыз.
+Отфильтруйте по статусу|Filter by status|Күйі бойынша сүзіңіз
+Нажмите на статус, чтобы увидеть соответствующие обращения. Заголовок «Обращения по статусам» откроет весь список.|Click a status to see matching requests. The Requests by status heading opens the full list.|Сәйкес өтініштерді көру үшін күйді басыңыз. «Өтініштер күйі бойынша» тақырыбы толық тізімді ашады.
+Нажмите на заголовок оценки компании или решения, чтобы увидеть все звёзды и комментарии. Раздел «1–2 звезды» показывает низкие оценки.|Click the company or resolution rating heading to see all stars and comments. The 1–2 stars section shows low ratings.|Барлық жұлдыз бен пікірді көру үшін компания немесе шешім бағасының тақырыбын басыңыз. «1–2 жұлдыз» бөлімінде төмен бағалар көрсетіледі.
+Открыть фото|Open photo|Фотоны ашу
+Открыть видео|Open video|Бейнені ашу
+Скачать|Download|Жүктеу

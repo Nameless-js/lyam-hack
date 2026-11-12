@@ -3,13 +3,17 @@ const fs = require('node:fs')
 const path = require('node:path')
 const { randomUUID } = require('node:crypto')
 const { DatabaseSync } = require('node:sqlite')
-const { suggest, matchAnswer, telegram } = require('./integrations')
+const { suggest, matchAnswer, translateTexts, transcribeAudio, telegram } = require('./integrations')
+const { readAttachments, sendAttachment, attachmentRequestBytes } = require('./attachments')
+const { repeatGroups } = require('./repeats')
 const telegramLinks = require('./telegram-links')
 const { review } = require('./moderation')
 
 const seed = require('./seed.json')
-const types = [...new Set(seed.map(item => item.type)), 'Просьба', 'Вопрос']
-const categories = [...new Set(seed.map(item => item.category))].sort((a, b) => a.localeCompare(b, 'ru'))
+const types = [...new Set(seed.map(item => item.type)), 'Просьба', 'Вопрос', 'Другое']
+const defaultCategory = 'Без категории'
+const defaultPriority = 'Средний'
+const categories = [defaultCategory, ...new Set(seed.map(item => item.category))].sort((a, b) => a.localeCompare(b, 'ru'))
 const statuses = ['Новое', 'На рассмотрении', 'Ожидает уточнения', 'В работе', 'Реализовано', 'Отклонено', 'Закрыто']
 const terminal = new Set(statuses.slice(4))
 const priorities = ['Низкий', 'Средний', 'Высокий']
@@ -29,12 +33,31 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY, time TEXT NOT NULL, actor TEXT NOT NULL, action TEXT NOT NULL, case_id INTEGER, incoming INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS knowledge (id INTEGER PRIMARY KEY, case_id INTEGER NOT NULL, event_index INTEGER NOT NULL, question TEXT NOT NULL, answer TEXT NOT NULL, UNIQUE(case_id, event_index));
   CREATE TABLE IF NOT EXISTS telegram_owner (id INTEGER PRIMARY KEY CHECK (id = 1), chat_id TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS attachments (id TEXT PRIMARY KEY, case_id INTEGER NOT NULL, type TEXT NOT NULL, data BLOB NOT NULL);
+  CREATE TABLE IF NOT EXISTS repeat_cache (language TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, groups TEXT, checked_at INTEGER NOT NULL);
 `)
+const findRepeatGroups = repeatGroups(db)
 const insert = db.prepare('INSERT INTO cases (id, data) VALUES (?, ?)')
 const update = db.prepare('UPDATE cases SET data = ? WHERE id = ?')
 const select = db.prepare('SELECT data FROM cases WHERE id = ?')
 const list = db.prepare('SELECT data FROM cases ORDER BY id DESC')
 const maxId = db.prepare('SELECT COALESCE(MAX(id), 0) + 1 AS id FROM cases')
+const insertAttachment = db.prepare('INSERT INTO attachments (id, case_id, type, data) VALUES (?, ?, ?, ?)')
+const selectAttachment = db.prepare('SELECT case_id, type, data FROM attachments WHERE id = ?')
+const transcribing = new Set()
+function saveCaseWithAttachments(item, files, isNew = false) {
+  const save = () => isNew ? insert.run(item.id, JSON.stringify(item)) : update.run(JSON.stringify(item), item.id)
+  if (!files.length) return save()
+  db.exec('BEGIN')
+  try {
+    save()
+    for (const { metadata, bytes } of files) insertAttachment.run(metadata.id, item.id, metadata.type, bytes)
+    db.exec('COMMIT')
+  } catch (error) {
+    db.exec('ROLLBACK')
+    throw error
+  }
+}
 const day = 86400000
 const stamp = (time = Date.now()) => new Date(time).toISOString()
 const record = (item, actor, label, text, time = stamp()) => {
@@ -48,21 +71,30 @@ const unreadAudit = db.prepare('SELECT COUNT(*) AS count FROM audit WHERE incomi
 const recentAnswers = db.prepare('SELECT id, question, answer FROM knowledge ORDER BY id DESC LIMIT 40')
 const saveAnswer = db.prepare(`INSERT INTO knowledge (case_id, event_index, question, answer) VALUES (?, ?, ?, ?)
   ON CONFLICT(case_id, event_index) DO UPDATE SET question=excluded.question, answer=excluded.answer`)
-const insertDefaultAnswer = db.prepare('INSERT OR IGNORE INTO knowledge (case_id, event_index, question, answer) VALUES (0, ?, ?, ?)')
+const insertDefaultAnswer = db.prepare(`INSERT INTO knowledge (case_id, event_index, question, answer) VALUES (0, ?, ?, ?)
+  ON CONFLICT(case_id, event_index) DO UPDATE SET question=excluded.question, answer=excluded.answer
+  WHERE knowledge.question <> excluded.question OR knowledge.answer <> excluded.answer`)
 const defaultAnswers = [
   ['Где посмотреть статус моего обращения?', 'Откройте нужный чат в разделе «Мои обращения». Текущий статус указан в шапке переписки, а решение появится в разделе «Итог».'],
   ['Как ответить на запрос уточнения?', 'Откройте чат нужного обращения, напишите уточнение в поле сообщения и нажмите «Отправить». Карточка вернётся на рассмотрение.'],
-  ['Как подать новое обращение?', 'Войдите в профиль сотрудника и нажмите «Новое обращение». Выберите тип и категорию, опишите ситуацию и нажмите «Подать обращение».'],
+  ['Как подать новое обращение?', 'Войдите в профиль сотрудника и нажмите «Новое обращение». Выберите тип, опишите ситуацию и нажмите «Подать обращение».'],
 ]
 defaultAnswers.forEach(([question, answer], index) => insertDefaultAnswer.run(index, question, answer))
 const kind = type => ({ 'Проблема': 'Жалоба', 'Предложение': 'Рекомендация' }[type] || type)
+const anonymousName = 'Анонимный сотрудник'
+function caseActor(item, profileId) {
+  return item.anonymous && profileId === item.author ? anonymousName : getProfileName(profileId)
+}
 let ownerChat = process.env.TELEGRAM_CHAT_ID || db.prepare('SELECT chat_id FROM telegram_owner WHERE id = 1').get()?.chat_id
 const ownerCode = telegramLinks.enabled && !ownerChat ? 'owner_' + randomUUID() : null
-function audit(user, action, id = null, incoming = false) {
-  const actor = user?.name || 'Гость'
-  insertAudit.run(stamp(), actor, action, id, Number(incoming))
-  telegram(actor + ' · ' + action + (id ? ' · ' + caseNumber(id) : ''), ownerChat)
-  if (incoming) telegramLinks.notifySubscribers(action + ' · ' + caseNumber(id), ownerChat)
+function audit(user, action, id = null, description = '') {
+  const row = id && user?.role === 'author' ? select.get(id) : null
+  const actor = row ? caseActor(JSON.parse(row.data), user.id) : user?.name || 'Гость'
+  insertAudit.run(stamp(), actor, action, id, Number(Boolean(description)))
+  const header = action + (id ? ' · ' + caseNumber(id) : '')
+  const message = description ? header + '\n\n' + description : header
+  telegram(actor + ' · ' + message, ownerChat)
+  if (description) telegramLinks.notifySubscribers(message, ownerChat)
 }
 
 async function answerQuestion(item) {
@@ -72,7 +104,7 @@ async function answerQuestion(item) {
     const answer = await matchAnswer(item.description, answers)
     if (!answer) return
     const current = JSON.parse(select.get(item.id).data)
-    if (current.status !== 'Новое' || current.owner || current.history.length !== 1) return
+    if (current.deleted || current.status !== 'Новое' || current.owner || current.history.length !== 1) return
     current.result = answer.answer
     current.status = 'Закрыто'
     current.firstResponse = stamp()
@@ -112,7 +144,7 @@ if (maxId.get().id === 1) {
   }
 }
 
-const canRead = (user, item) => user.role === 'admin' || item.author === user.id || item.owner === user.id
+const canRead = (user, item) => !item.deleted && (user.role === 'admin' || item.author === user.id || item.owner === user.id)
 const sessions = new Map()
 const userFrom = req => {
   const token = (req.headers.cookie || '').match(/(?:^|;\s*)sid=([\w-]+)/)?.[1]
@@ -125,16 +157,21 @@ function send(res, status, data, headers = {}) {
 function fail(status, message) {
   throw Object.assign(new Error(message), { status })
 }
-async function body(req) {
+async function readBytes(req, limit) {
+  if (Number(req.headers['content-length']) > limit) fail(413, 'Слишком большой запрос.')
   let size = 0
   const chunks = []
   for await (const chunk of req) {
     size += chunk.length
-    if (size > 32768) fail(413, 'Слишком большой запрос.')
+    if (size > limit) fail(413, 'Слишком большой запрос.')
     chunks.push(chunk)
   }
+  return Buffer.concat(chunks)
+}
+async function body(req, limit = 32768) {
+  const bytes = await readBytes(req, limit)
   try {
-    const data = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+    const data = JSON.parse(bytes.toString('utf8'))
     if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error()
     return data
   } catch {
@@ -145,15 +182,34 @@ function required(value, message) {
   if (typeof value !== 'string' || !value.trim() || value.trim().length > 4000) fail(400, message)
   return value.trim()
 }
+function commentText(value, attachments) {
+  if (attachments.length && typeof value === 'string' && !value.trim()) return ''
+  return required(value, 'Введите комментарий (до 4000 символов).')
+}
 function pick(value, options, message) {
   if (!options.includes(value)) fail(400, message)
   return value
 }
-function view(item) {
+function canRateResolution(item) {
+  return !item.moderationReason && item.type !== 'Положительный отзыв' && Boolean(item.result) &&
+    ['Реализовано', 'Закрыто'].includes(item.status)
+}
+function view(item, user) {
   const { heldMessages, moderationReason, ...visible } = item
+  const authorName = getProfileName(item.author)
+  const hideAuthor = item.anonymous && item.author !== user.id
+  const hideContent = moderationReason && user.role === 'admin'
   return {
-    ...visible, moderated: Boolean(moderationReason), number: caseNumber(item.id), authorName: getProfileName(item.author),
-    ownerName: getProfileName(item.owner), department: profileById.get(item.author).department,
+    ...visible,
+    description: hideContent ? '' : item.description,
+    attachments: hideContent ? [] : item.attachments,
+    canRateResolution: item.author === user.id && canRateResolution(item) && !item.resolutionRating,
+    moderationNotices: user.role === 'admin' ? (heldMessages || []).map(({ time }) => ({ time })) : [],
+    author: hideAuthor ? null : item.author,
+    authorName: hideAuthor ? anonymousName : authorName,
+    history: hideAuthor ? item.history.map(event => event.actor === authorName ? { ...event, actor: anonymousName } : event) : item.history,
+    moderated: Boolean(moderationReason), number: caseNumber(item.id),
+    ownerName: getProfileName(item.owner), department: item.anonymous ? null : profileById.get(item.author).department,
     overdue: !terminal.has(item.status) && Date.parse(item.due) < Date.now(),
   }
 }
@@ -195,9 +251,17 @@ function edit(user, item, data) {
       record(item, actor, status, text)
       break
     }
+    case 'priority': {
+      if (user.role !== 'admin') fail(403, 'Изменить приоритет может координатор.')
+      item.priority = pick(data.priority, priorities, 'Выберите приоритет.')
+      record(item, actor, 'Приоритет изменён · ' + item.priority, '')
+      break
+    }
     case 'comment': {
-      const text = required(data.text, 'Введите комментарий (до 4000 символов).')
+      const attachments = data.attachments || []
+      const text = commentText(data.text, attachments)
       record(item, actor, 'Комментарий', text)
+      if (attachments.length) item.history.at(-1).attachments = attachments
       if (!staff && item.status === 'Ожидает уточнения') {
         item.status = 'На рассмотрении'
         record(item, 'Система', 'На рассмотрении', 'Автор ответил на запрос уточнения.')
@@ -214,12 +278,24 @@ const assets = {
   '/style.css': ['style.css', 'text/css'],
   '/app.js': ['app.js', 'text/javascript'],
   '/motion-14.12.0.js': ['motion-14.12.0.js', 'text/javascript'],
+  '/i18n.js': ['i18n.js', 'text/javascript'],
+  '/analytics.js': ['analytics.js', 'text/javascript'],
+  '/repeats.js': ['repeats.js', 'text/javascript'],
+  '/media-input.js': ['media-input.js', 'text/javascript'],
+  '/translations.txt': ['translations.txt', 'text/plain'],
   '/hero.webp': ['hero.webp', 'image/webp'],
 }
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost')
     const route = url.pathname
+    if (req.method === 'GET' && (route === '/pdfmake.js' || route === '/pdfmake-fonts.js')) {
+      const file = path.join(__dirname, 'node_modules', 'pdfmake', 'build',
+        route === '/pdfmake.js' ? 'pdfmake.min.js' : 'vfs_fonts.js')
+      if (!fs.existsSync(file)) fail(503, 'Не удалось подготовить PDF.')
+      res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-cache' })
+      return res.end(fs.readFileSync(file))
+    }
     if (req.method === 'GET' && assets[route]) {
       const [name, mime] = assets[route]
       res.writeHead(200, { 'Content-Type': mime + '; charset=utf-8', 'Cache-Control': 'no-cache' })
@@ -242,36 +318,94 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { user, profiles, types, categories, statuses, priorities, departments, transitions })
     }
     if (!user) fail(401, 'Выберите демо-профиль.')
+    if (route === '/api/repeats' && req.method === 'GET') {
+      if (user.role !== 'admin') fail(403, 'Раздел доступен координатору.')
+      const language = url.searchParams.get('language') || 'ru'
+      if (!['ru', 'kk', 'en'].includes(language)) fail(400, 'Некорректный запрос.')
+      const complaints = list.all().map(row => JSON.parse(row.data))
+        .filter(item => !item.deleted && !item.moderationReason && item.type === 'Проблема')
+      return send(res, 200, findRepeatGroups(complaints, language))
+    }
+    if (route === '/api/transcribe' && req.method === 'POST') {
+      const type = req.headers['content-type']?.split(';')[0]
+      if (!['audio/webm', 'audio/ogg', 'audio/mp4'].includes(type)) fail(400, 'Формат записи не поддерживается.')
+      if (transcribing.has(user.id)) fail(409, 'Дождитесь окончания расшифровки.')
+      transcribing.add(user.id)
+      try {
+        const bytes = await readBytes(req, 4 * 1024 * 1024)
+        if (!bytes.length) fail(400, 'Запись пуста.')
+        const text = await transcribeAudio(bytes, type === 'audio/mp4' ? 'audio/m4a' : type)
+        if (!text) fail(422, 'В записи не удалось распознать речь.')
+        return send(res, 200, { text })
+      } catch (error) {
+        if (error.status) throw error
+        console.error('Расшифровка Gemini: ' + error.message)
+        fail(502, 'Не удалось расшифровать запись.')
+      } finally {
+        transcribing.delete(user.id)
+      }
+    }
+    const attachment = route.match(/^\/api\/attachments\/([a-f0-9-]{36})$/)
+    if (attachment && ['GET', 'HEAD'].includes(req.method)) {
+      const file = selectAttachment.get(attachment[1])
+      const row = file && select.get(file.case_id)
+      const item = row && JSON.parse(row.data)
+      if (!item || !canRead(user, item) || (user.role !== 'admin' &&
+          item.heldMessages?.some(message => message.attachments?.some(entry => entry.id === attachment[1])))) {
+        fail(404, 'Вложение не найдено.')
+      }
+      return sendAttachment(req, res, file.type, file.data)
+    }
     if (route === '/api/moderation' && req.method === 'GET') {
       if (user.role !== 'admin') fail(403, 'Раздел доступен координатору.')
       const entries = list.all().flatMap(row => {
         const item = JSON.parse(row.data)
+        if (item.deleted) return []
         const held = item.heldMessages || []
         const content = item.moderationReason
-          ? [{ id: 'case', text: item.description, reason: item.moderationReason, author: item.author, time: item.created }, ...held]
+          ? [{ id: 'case', text: item.description, attachments: item.attachments, reason: item.moderationReason, author: item.author, time: item.created }, ...held]
           : held
-        return content.map(entry => ({ ...entry, caseId: item.id, number: caseNumber(item.id), author: getProfileName(entry.author) }))
+        const replies = item.history.filter(event => event.label === 'Ответ по модерации')
+        return content.map(entry => ({ ...entry, replies, caseId: item.id, number: caseNumber(item.id), author: caseActor(item, entry.author) }))
       })
       return send(res, 200, entries.sort((a, b) => b.time.localeCompare(a.time)))
     }
-    const restore = route.match(/^\/api\/moderation\/(\d+)$/)
-    if (restore && req.method === 'POST') {
+    const moderation = route.match(/^\/api\/moderation\/(\d+)$/)
+    if (moderation && req.method === 'POST') {
       if (user.role !== 'admin') fail(403, 'Раздел доступен координатору.')
-      const { id } = await body(req)
-      const row = select.get(Number(restore[1]))
+      const { id, action = 'restore', text } = await body(req)
+      const row = select.get(Number(moderation[1]))
       if (!row) fail(404, 'Обращение не найдено.')
       const item = JSON.parse(row.data)
+      if (item.deleted) fail(404, 'Обращение не найдено.')
+      const message = item.heldMessages?.find(entry => entry.id === id)
+      if (!(id === 'case' && item.moderationReason) && !message) fail(404, 'Сообщение уже обработано.')
+      if (action === 'reply') {
+        const reply = required(text, 'Введите комментарий (до 4000 символов).')
+        record(item, user.name, 'Ответ по модерации', reply)
+        if (!item.firstResponse) item.firstResponse = stamp()
+        update.run(JSON.stringify(item), item.id)
+        audit(user, 'Ответил по модерации', item.id)
+        return send(res, 200, { ok: true })
+      }
+      if (action === 'delete') {
+        item.deleted = true
+        update.run(JSON.stringify(item), item.id)
+        audit(user, 'Удалил чат из спама', item.id)
+        return send(res, 200, { ok: true })
+      }
+      if (action !== 'restore') fail(400, 'Неизвестное действие.')
       if (id === 'case' && item.moderationReason) {
         delete item.moderationReason
         update.run(JSON.stringify(item), item.id)
-        audit(user, 'Возвращено из спама · ' + kind(item.type) + ' · ' + item.category, item.id, true)
+        audit(user, 'Возвращено из спама · ' + kind(item.type) + ' · ' + item.category, item.id, item.description)
       } else {
-        const message = item.heldMessages?.find(entry => entry.id === id)
-        if (!message) fail(404, 'Сообщение уже обработано.')
         const author = profileById.get(message.author)
-        if (message.kind === 'rating') item.rating.comment = message.text
-        else if (terminal.has(item.status)) record(item, author.name, 'Комментарий', message.text)
-        else edit(author, item, { action: 'comment', text: message.text })
+        if (message.kind === 'rating' || message.kind === 'resolutionRating') item[message.kind].comment = message.text
+        else if (terminal.has(item.status)) {
+          record(item, author.name, 'Комментарий', message.text)
+          if (message.attachments?.length) item.history.at(-1).attachments = message.attachments
+        } else edit(author, item, { action: 'comment', text: message.text, attachments: message.attachments })
         item.heldMessages = item.heldMessages.filter(entry => entry.id !== id)
         update.run(JSON.stringify(item), item.id)
         audit(user, 'Восстановил сообщение', item.id)
@@ -301,17 +435,22 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === 'GET' && route === '/api/cases') {
       return send(res, 200, list.all().map(row => JSON.parse(row.data))
-        .filter(item => canRead(user, item) && (!item.moderationReason || item.author === user.id)).map(view))
+        .filter(item => canRead(user, item) &&
+          (!item.moderationReason || item.author === user.id || user.role === 'admin')).map(item => view(item, user)))
     }
     if (req.method === 'POST' && route === '/api/cases') {
       if (user.role !== 'author') fail(403, 'Подать обращение может сотрудник.')
-      const data = await body(req)
+      const data = await body(req, attachmentRequestBytes)
+      const files = readAttachments(data.attachments, fail)
+      if (data.anonymous !== undefined && typeof data.anonymous !== 'boolean') fail(400, 'Некорректный запрос.')
       const created = stamp()
       const item = {
         type: pick(data.type, types, 'Выберите тип.'),
-        category: pick(data.category, categories, 'Выберите категорию.'),
-        priority: pick(data.priority, priorities, 'Выберите приоритет.'),
+        category: pick(data.category ?? defaultCategory, categories, 'Выберите категорию.'),
+        priority: pick(data.priority ?? defaultPriority, priorities, 'Выберите приоритет.'),
         description: required(data.description, 'Опишите обращение (до 4000 символов).'),
+        attachments: files.map(file => file.metadata),
+        anonymous: data.anonymous === true,
         author: user.id, owner: null, status: 'Новое', task: '', result: '',
         created, firstResponse: null, due: stamp(Date.now() + 4 * day), history: [],
       }
@@ -319,38 +458,60 @@ const server = http.createServer(async (req, res) => {
       item.id = maxId.get().id
       if (reason) item.moderationReason = reason
       record(item, user.name, 'Подано обращение', '', created)
-      insert.run(item.id, JSON.stringify(item))
+      saveCaseWithAttachments(item, files, true)
       if (reason) audit(user, 'Обращение отфильтровано', item.id)
       else {
-        audit(user, 'Новое обращение · ' + kind(item.type) + ' · ' + item.category, item.id, true)
+        audit(user, 'Новое обращение · ' + kind(item.type) + ' · ' + item.category, item.id, item.description)
         void answerQuestion(item)
       }
-      return send(res, 201, view(item))
+      return send(res, 201, view(item, user))
     }
-    const extra = route.match(/^\/api\/cases\/(\d+)\/(open|suggest|knowledge|rating)$/)
+    const extra = route.match(/^\/api\/cases\/(\d+)\/(open|suggest|knowledge|rating|translate)$/)
     if (req.method === 'POST' && extra) {
       const row = select.get(Number(extra[1]))
       const item = row && JSON.parse(row.data)
-      if (!item || !canRead(user, item) || (item.moderationReason && item.author !== user.id)) fail(404, 'Обращение не найдено.')
+      if (!item || !canRead(user, item) ||
+          (item.moderationReason && item.author !== user.id && !['translate', 'open'].includes(extra[2]))) fail(404, 'Обращение не найдено.')
+      if (extra[2] === 'translate') {
+        const { language, texts } = await body(req)
+        const available = new Set([item.description, item.task, item.result, item.rating?.comment, item.resolutionRating?.comment,
+          ...item.history.map(event => event.text)])
+        if (user.role === 'admin') for (const message of item.heldMessages || []) available.add(message.text)
+        if (!['ru', 'kk', 'en'].includes(language) || !Array.isArray(texts) || !texts.length || texts.length > 12 ||
+            texts.some(value => typeof value !== 'string' || !available.has(value)) ||
+            texts.reduce((size, value) => size + value.length, 0) > 6000) fail(400, 'Некорректный запрос.')
+        try {
+          return send(res, 200, { texts: await translateTexts(texts, language) })
+        } catch (error) {
+          console.error('Перевод Gemini: ' + error.message)
+          fail(502, 'Перевод пока недоступен.')
+        }
+      }
       if (extra[2] === 'rating') {
-        if (item.author !== user.id || item.type !== 'Положительный отзыв') fail(403, 'Оценка доступна автору отзыва.')
-        if (item.rating) fail(409, 'Оценка уже сохранена.')
-        const { score, comment = '' } = await body(req)
+        const { score, comment = '', kind: ratingKind = 'rating' } = await body(req)
+        if (!['rating', 'resolutionRating'].includes(ratingKind)) fail(400, 'Некорректный запрос.')
+        const resolution = ratingKind === 'resolutionRating'
+        if (item.author !== user.id || (resolution ? !canRateResolution(item) : item.type !== 'Положительный отзыв')) {
+          fail(403, resolution ? 'Оценка решения доступна автору после завершения обращения.' : 'Оценка доступна автору отзыва.')
+        }
+        if (item[ratingKind]) fail(409, 'Оценка уже сохранена.')
         if (!Number.isInteger(score) || score < 1 || score > 5) fail(400, 'Выберите оценку от 1 до 5.')
         if (typeof comment !== 'string' || comment.length > 1000) fail(400, 'Комментарий должен быть не длиннее 1000 символов.')
         const message = comment.trim()
         const reason = message ? await review(user.id, message) : null
         const current = JSON.parse(select.get(item.id).data)
-        if (current.rating) fail(409, 'Оценка уже сохранена.')
-        current.rating = { score, comment: reason ? '' : message }
+        if (!canRead(user, current)) fail(404, 'Обращение не найдено.')
+        if (current[ratingKind]) fail(409, 'Оценка уже сохранена.')
+        current[ratingKind] = { score, comment: reason ? '' : message }
         if (reason) {
           current.heldMessages = [...(current.heldMessages || []), {
-            id: randomUUID(), kind: 'rating', text: message, reason, author: user.id, time: stamp(),
+            id: randomUUID(), kind: ratingKind, text: message, reason, author: user.id, time: stamp(),
           }]
         }
         update.run(JSON.stringify(current), current.id)
-        audit(user, reason ? 'Оставил оценку · комментарий на модерации' : 'Оставил оценку компании', current.id)
-        return send(res, 201, { item: view(current), commentModerated: Boolean(reason) })
+        audit(user, reason ? 'Оставил оценку · комментарий на модерации' :
+          resolution ? 'Оценил решение обращения' : 'Оставил оценку компании', current.id)
+        return send(res, 201, { item: view(current, user), commentModerated: Boolean(reason) })
       }
       if (extra[2] === 'open') {
         audit(user, 'Открыл чат', item.id)
@@ -376,42 +537,47 @@ const server = http.createServer(async (req, res) => {
         topics: [...new Set(seed.filter(entry => entry.owner === profile.name).map(entry => entry.category))],
       }))
       try {
+        const { language } = await body(req)
         const result = await suggest({
           type: kind(item.type), category: item.category, description: item.description,
           messages: item.history.slice(-8).filter(event => event.text).map(event => ({ action: event.label, text: event.text.slice(0, 1500) })),
           candidates,
-        })
+        }, language)
         const owner = candidates.find(candidate => candidate.id === result.owner) || null
         audit(user, 'Запросил рекомендацию Gemini', item.id)
         return send(res, 200, { owner, reply: result.reply, task: result.task, reason: result.reason })
       } catch (error) {
-        fail(502, error.message)
+        console.error('Gemini: ' + error.message)
+        fail(502, 'Не удалось получить ответ Gemini.')
       }
     }
     const match = route.match(/^\/api\/cases\/(\d+)$/)
     if (req.method === 'POST' && match) {
-      const data = await body(req)
+      const data = await body(req, attachmentRequestBytes)
       const row = select.get(Number(match[1]))
       let item = row && JSON.parse(row.data)
       if (!item || !canRead(user, item)) fail(404, 'Обращение не найдено.')
       if (item.moderationReason) fail(409, 'Обращение ожидает модерации.')
+      const files = data.action === 'comment' ? readAttachments(data.attachments, fail) : []
+      data.attachments = files.map(file => file.metadata)
       if (data.action === 'comment' && !terminal.has(item.status)) {
-        const message = required(data.text, 'Введите комментарий (до 4000 символов).')
-        const reason = await review(user.id, message)
+        const message = commentText(data.text, data.attachments)
+        const reason = message ? await review(user.id, message) : null
         item = JSON.parse(select.get(item.id).data)
         if (!canRead(user, item)) fail(404, 'Обращение не найдено.')
         if (terminal.has(item.status)) fail(409, 'Обращение уже завершено.')
         if (reason) {
-          item.heldMessages = [...(item.heldMessages || []), { id: randomUUID(), text: message, reason, author: user.id, time: stamp() }]
-          update.run(JSON.stringify(item), item.id)
+          item.heldMessages = [...(item.heldMessages || []), { id: randomUUID(), text: message, attachments: data.attachments, reason, author: user.id, time: stamp() }]
+          saveCaseWithAttachments(item, files)
           audit(user, 'Сообщение отфильтровано', item.id)
-          return send(res, 202, { ...view(item), messageModerated: true })
+          return send(res, 202, { ...view(item, user), messageModerated: true })
         }
       }
       edit(user, item, data)
-      update.run(JSON.stringify(item), item.id)
-      audit(user, { assign: 'Назначил исполнителя', status: 'Статус · ' + item.status, comment: 'Отправил сообщение' }[data.action], item.id)
-      return send(res, 200, view(item))
+      saveCaseWithAttachments(item, files)
+      audit(user, { assign: 'Назначил исполнителя', status: 'Статус · ' + item.status,
+        priority: 'Приоритет изменён · ' + item.priority, comment: 'Отправил сообщение' }[data.action], item.id)
+      return send(res, 200, view(item, user))
     }
     fail(404, 'Страница не найдена.')
   } catch (error) {

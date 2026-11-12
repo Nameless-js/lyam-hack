@@ -8,17 +8,19 @@ const options = (values, selected, placeholder) => {
   return items.map(({ id, name }) => '<option value="' + escapeHtml(id) + '"' +
     (id === selected ? ' selected' : '') + '>' + escapeHtml(name) + '</option>').join('')
 }
-const dateFormat = new Intl.DateTimeFormat('ru-RU', { timeZone: 'Asia/Qyzylorda', dateStyle: 'short' })
-const timeFormat = new Intl.DateTimeFormat('ru-RU', { timeZone: 'Asia/Qyzylorda', dateStyle: 'short', timeStyle: 'short' })
+const dateFormat = new Intl.DateTimeFormat(locale, { timeZone: 'Asia/Qyzylorda', dateStyle: 'short' })
+const timeFormat = new Intl.DateTimeFormat(locale, { timeZone: 'Asia/Qyzylorda', dateStyle: 'short', timeStyle: 'short' })
 const roleNames = { admin: 'Координатор', author: 'Сотрудник', owner: 'Исполнитель' }
 let config
 let cases = []
 let openId = null
 const drafts = new Map()
 const pendingMessages = new Set()
+const promptedRatings = new Set()
 let redrawChatAfterTour = false
 const typeLabel = type => ({ 'Проблема': 'Жалоба', 'Предложение': 'Рекомендация' }[type] || type)
-const initials = name => name.split(/\s+/).slice(0, 2).map(word => word[0]).join('').toUpperCase()
+const priorityCode = { Высокий: 'P1', Средний: 'P2', Низкий: 'P3' }
+const initials = name => translate(name).split(/\s+/).slice(0, 2).map(word => word[0]).join('').toUpperCase()
 const icon = name => '<svg class="icon" aria-hidden="true"><use href="#icon-' + name + '"/></svg>'
 const statusTones = {
   'Новое': 'blue', 'На рассмотрении': 'blue', 'В работе': 'blue',
@@ -40,6 +42,7 @@ function showPane(pane, scroll = false) {
   if (pane === 'chat') {
     const messages = $('chat').querySelector('.messages')
     if (messages) messages.scrollTop = messages.scrollHeight
+    maybePromptRating(cases.find(item => item.id === openId))
   }
   if (scroll && mobileWorkspace.matches) workspace.scrollIntoView({ block: 'nearest' })
 }
@@ -49,8 +52,60 @@ async function api(route, data) {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
   })
   const result = await response.json()
-  if (!response.ok) throw new Error(result.error)
+  if (!response.ok) throw new Error(result.error || 'Не удалось выполнить запрос.')
   return result
+}
+const contentTranslations = new Map()
+function contentText(text, caseId) {
+  const translated = translate(text)
+  if (language === 'ru' || translated !== text) return escapeHtml(translated)
+  return '<span data-content-case="' + caseId + '" data-original-text="' + escapeHtml(text) + '">' +
+    escapeHtml(translate('Переводится…')) + '</span>'
+}
+function translateContent(root) {
+  const groups = new Map()
+  const elements = root.querySelectorAll('[data-content-case]')
+  for (const element of elements) {
+    const id = element.dataset.contentCase
+    const text = element.dataset.originalText
+    if (contentTranslations.has(id + ':' + text)) continue
+    if (!groups.has(id)) groups.set(id, new Set())
+    groups.get(id).add(text)
+  }
+  for (const [id, texts] of groups) {
+    let batch = []
+    let size = 0
+    const request = () => {
+      const originals = batch
+      const response = api('cases/' + id + '/translate', { language, texts: originals }).catch(() => null)
+      originals.forEach((text, index) => {
+        contentTranslations.set(id + ':' + text, response.then(result => result?.texts[index]))
+      })
+      batch = []
+      size = 0
+    }
+    for (const text of texts) {
+      if (batch.length === 12 || size + text.length > 6000) request()
+      batch.push(text)
+      size += text.length
+    }
+    if (batch.length) request()
+  }
+  for (const element of elements) {
+    const original = element.dataset.originalText
+    contentTranslations.get(element.dataset.contentCase + ':' + original)?.then(result => {
+      if (!element.isConnected) return
+      element.textContent = result || translate('Перевод пока недоступен.')
+      if (!result) {
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.className = 'secondary translation-original'
+        button.textContent = translate('Показать оригинал')
+        button.onclick = () => { element.textContent = original }
+        element.append(' ', button)
+      }
+    })
+  }
 }
 function notice(message, error = false) {
   const banner = $('notice')
@@ -83,13 +138,18 @@ function showRole() {
   $('notifications').hidden = user?.role !== 'admin'
   $('moderation').hidden = user?.role !== 'admin'
   $('telegram').hidden = user?.role !== 'admin'
+  $('open-analytics').hidden = user?.role !== 'admin'
+  $('open-repeats').hidden = user?.role !== 'admin'
   $('department-filter').hidden = user?.role !== 'admin'
+  showAnalyticsPage()
   if (user && previousRole && (previousRole !== $('role-label').textContent || previousSubtitle !== $('subtitle').textContent)) {
     animateUi($('heading').parentElement, { opacity: [.35, 1], y: [7, 0] }, { duration: .34 })
   }
 }
 function draw() {
   if (!config.user) return
+  if (!$('analytics').hidden) drawAnalytics()
+  if (!$('repeats').hidden) void loadRepeatedProblems()
   const finished = cases.filter(item => config.statuses.slice(4).includes(item.status)).length
   const withResponse = cases.filter(item => item.firstResponse)
   const totalHours = withResponse.reduce((sum, item) =>
@@ -113,8 +173,9 @@ function draw() {
   const type = $('type-filter').value
   const category = $('category-filter').value
   const department = $('department-filter').value
+  const ownQueue = config.user.role === 'author'
   const visible = cases.filter(item =>
-    (!query || [item.number, item.authorName, item.description, item.category, typeLabel(item.type)].join(' ').toLowerCase().includes(query)) &&
+    (!query || [item.number, item.authorName, item.description, item.category, typeLabel(item.type)].map(translate).join(' ').toLowerCase().includes(query)) &&
     (!type || item.type === type) &&
     (!status || item.status === status) && (!category || item.category === category) &&
     (!department || item.department === department) && (!$('late-filter').checked || item.overdue))
@@ -124,10 +185,10 @@ function draw() {
   if (!openId) showPane('list')
   $('cases').innerHTML = visible.map(item => `
     <button type="button" class="chat-row" data-case="${item.id}" aria-current="${item.id === openId}">
-      <span class="avatar" aria-hidden="true">${escapeHtml(initials(item.authorName))}</span>
-      <span class="row-body"><strong>${escapeHtml(item.authorName)}</strong>
-        <span class="row-topic">${escapeHtml(item.category)}</span>
-        <span class="row-meta">${escapeHtml(typeLabel(item.type))} · ${item.number}</span>
+      <span class="avatar" aria-hidden="true">${escapeHtml(initials(ownQueue ? item.category : item.authorName))}</span>
+      <span class="row-body"><strong>${escapeHtml(ownQueue ? item.category : item.authorName)}</strong>
+        <span class="row-topic">${escapeHtml(ownQueue ? (item.moderated ? 'На модерации' : item.status) : item.category)}</span>
+        <span class="row-meta">${escapeHtml(typeLabel(item.type))} · ${item.number}${item.priority === 'Высокий' ? ' · P1' : ''}</span>
       </span>${item.status === 'Новое' ? '<span class="new-dot" title="Новое"></span>' : ''}
     </button>`).join('') || '<p class="empty muted">' +
       (cases.length ? 'Обращений по этим условиям нет.' : 'Здесь появятся обращения.') + '</p>'
@@ -137,8 +198,10 @@ async function refresh() {
   cases = config.user ? await api('cases') : []
   draw()
 }
-function modal(title, content) {
-  $('dialog-content').innerHTML = '<div class="dialog-head"><h2 id="dialog-title">' + escapeHtml(title) +
+function modal(title, content, variant = '') {
+  $('dialog').dataset.variant = variant
+  const marker = variant === 'moderation' ? '<span class="role-icon">' + icon('shield') + '</span>' : ''
+  $('dialog-content').innerHTML = '<div class="dialog-head"><h2 id="dialog-title">' + marker + escapeHtml(title) +
     '</h2><button type="button" class="secondary" id="close-dialog" aria-label="Закрыть">×</button></div>' +
     '<p id="dialog-error" class="error" role="alert" hidden></p>' + content
   $('close-dialog').onclick = () => $('dialog').close()
@@ -147,6 +210,16 @@ function modal(title, content) {
   animateUi($('dialog-content'), { opacity: [.35, 1], y: [8, 0] }, { duration: .32 })
 }
 function showAction(item, action, suggestion = null) {
+  if (action === 'priority') {
+    const choices = [...config.priorities].reverse().map(priority => ({
+      id: priority, name: priorityCode[priority] + ' · ' + priority,
+    }))
+    modal('Изменить приоритет', `<form class="action-form" data-action="priority">
+      <label>Приоритет<select name="priority">${options(choices, item.priority)}</select></label>
+      <button>Сохранить приоритет</button>
+    </form>`)
+    return
+  }
   const next = config.transitions[item.status]
   const ownerOptions = config.profiles.filter(profile => profile.role === 'owner')
   const dueDate = new Date(Date.parse(item.due) + 5 * 3600000).toISOString().slice(0, 10)
@@ -180,11 +253,20 @@ function renderChat() {
   const active = !item.moderated && Boolean(config.transitions[item.status])
   const admin = config.user.role === 'admin'
   const staff = config.user.role !== 'author'
+  const chatTitle = staff ? item.authorName : item.category
   const sameChat = chat.dataset.caseId === String(item.id)
   const previousMessages = sameChat ? chat.querySelector('.messages').childElementCount : 0
   const previousStatus = sameChat ? chat.querySelector('.tag').textContent : ''
   const sending = pendingMessages.has(config.user.id + ':' + item.id)
-  const events = [{ actor: item.authorName, text: item.description, time: item.created, label: 'Исходное обращение' }, ...item.history.slice(1)]
+  const spamNotice = (time, label) => ({ actor: 'Система', label, time })
+  const original = admin && item.moderated
+    ? spamNotice(item.created, 'Обращение с нарушениями перемещено в спам.')
+    : { actor: item.authorName, text: item.description, time: item.created, label: 'Исходное обращение', attachments: item.attachments }
+  const events = [original, ...item.history.slice(1)].map((event, index) => ({ ...event, index }))
+  for (const { time } of item.moderationNotices || []) {
+    events.push(spamNotice(time, 'Сообщение с нарушениями перемещено в спам.'))
+  }
+  events.sort((a, b) => a.time.localeCompare(b.time))
   chat.dataset.caseId = item.id
   chat.innerHTML = `
     <nav class="mobile-nav" aria-label="Навигация по обращению">
@@ -192,28 +274,34 @@ function renderChat() {
       <button type="button" class="quiet" data-pane-target="details">${icon('details')} Карточка</button>
     </nav>
     <header class="chat-head">
-      <span class="avatar" aria-hidden="true">${escapeHtml(initials(item.authorName))}</span>
-      <div><h2 id="chat-heading" tabindex="-1">${escapeHtml(item.authorName)}</h2><p>${item.number} · ${escapeHtml(item.category)}</p></div>
+      <span class="avatar" aria-hidden="true">${escapeHtml(initials(chatTitle))}</span>
+      <div><h2 id="chat-heading" tabindex="-1">${escapeHtml(chatTitle)}</h2><p>${item.number} · ${escapeHtml(staff ? item.category : typeLabel(item.type))}</p></div>
       <span class="tag" data-tone="${item.moderated ? 'amber' : statusTones[item.status] || 'neutral'}">${item.moderated ? 'На модерации' : escapeHtml(item.status)}</span>
     </header>
-    <div class="messages">${events.map((event, index) => `
-      <article class="message ${event.actor === item.authorName ? '' : 'staff-message'}">
-        <div class="message-meta"><strong>${escapeHtml(event.actor)}</strong><span>${timeFormat.format(new Date(event.time))}</span></div>
+    <div class="messages">${events.map(event => `
+      <article class="message ${event.actor === config.user.name ? 'own-message' : ''}">
+        <div class="message-meta"><strong>${event.actor === config.user.name ? 'Вы' : escapeHtml(event.actor)}</strong><span>${timeFormat.format(new Date(event.time))}</span></div>
         ${event.label !== 'Комментарий' ? '<small>' + escapeHtml(event.label) + '</small>' : ''}
-        ${event.text ? '<p class="copy">' + escapeHtml(event.text) + '</p>' : ''}
-        ${admin && event.actor === config.user.name && event.label === 'Комментарий' ? '<button type="button" class="save-answer" data-knowledge="' + index + '">Сохранить как общий ответ</button>' : ''}
+        ${event.text ? '<p class="copy">' + contentText(event.text, item.id) + '</p>' : ''}
+        ${renderAttachments(event.attachments)}
+        ${admin && event.actor === config.user.name && event.label === 'Комментарий' ? '<button type="button" class="save-answer" data-knowledge="' + event.index + '">Сохранить как общий ответ</button>' : ''}
       </article>`).join('')}</div>
-    ${active ? `<form id="composer" class="composer">
-      <div class="chat-actions">
+    ${active ? `<form id="composer" class="composer" data-case-id="${item.id}">
+      ${staff ? `<div class="chat-actions">
         ${admin ? '<button class="ai-button" type="button" data-chat-action="suggest">' + icon('spark') + ' Рекомендация ИИ</button><button class="secondary" type="button" data-chat-action="assign">Поручить</button>' : ''}
-        ${staff ? '<button class="secondary" type="button" data-chat-action="status">Изменить статус</button>' : ''}
-      </div>
+        <button class="secondary" type="button" data-chat-action="status">Изменить статус</button>
+        ${admin ? '<button class="secondary" type="button" data-chat-action="priority">Изменить приоритет</button>' : ''}
+      </div>` : ''}
+      <div class="composer-media-feedback">${mediaFeedback()}</div>
       <div class="compose-row">
         <textarea name="text" aria-label="Сообщение" placeholder="Написать сообщение…" maxlength="4000" required rows="2">${escapeHtml(drafts.get(item.id))}</textarea>
+        ${mediaButtons()}
         <button type="submit" aria-label="Отправить сообщение" title="Отправить сообщение">${icon('send')}<span class="send-spinner" aria-hidden="true"></span></button>
       </div>
       <span class="sr-only" role="status" data-send-status></span>
-    </form>` : '<div class="composer muted">' + (item.moderated ? 'Обращение ожидает проверки координатором.' : 'Обращение завершено') + '</div>'}`
+    </form>` : '<div class="composer muted">' + (item.moderated
+      ? admin ? '<button type="button" class="secondary" data-chat-action="moderation">Открыть спам</button>' : 'Обращение ожидает проверки координатором.'
+      : 'Обращение завершено') + '</div>'}`
   $('case-details').innerHTML = `
     <nav class="mobile-nav" aria-label="Навигация по карточке">
       <button type="button" class="quiet" data-pane-target="chat">${icon('back')} К переписке</button>
@@ -221,15 +309,22 @@ function renderChat() {
     <div class="details-head"><span class="details-icon">${icon('details')}</span><div><p class="eyebrow">Карточка ${item.number}</p><h2 id="details-heading" tabindex="-1">Об обращении</h2></div></div>
     <dl class="case-facts">
       <div><dt>Тип</dt><dd>${escapeHtml(typeLabel(item.type))}</dd></div>
-      <div><dt>Подразделение</dt><dd>${escapeHtml(item.department)}</dd></div>
-      <div><dt>Приоритет</dt><dd>${escapeHtml(item.priority)}</dd></div>
+      ${item.anonymous ? '<div><dt>Автор</dt><dd>Анонимный сотрудник</dd></div>' :
+        '<div><dt>Подразделение</dt><dd>' + escapeHtml(item.department) + '</dd></div>'}
+      <div><dt>Приоритет</dt><dd>${escapeHtml([priorityCode[item.priority], item.priority].filter(Boolean).join(' · '))}</dd></div>
       <div><dt>Исполнитель</dt><dd>${escapeHtml(item.ownerName)}</dd></div>
       <div><dt>Срок</dt><dd class="${item.overdue ? 'late' : ''}">${dateFormat.format(new Date(item.due))}${item.overdue ? ' · Просрочено' : ''}</dd></div>
     </dl>
-    ${item.task ? '<section class="box"><h3>Поручение</h3><p class="copy">' + escapeHtml(item.task) + '</p></section>' : ''}
-    ${item.result ? '<section class="box"><h3>Итог</h3><p class="copy">' + escapeHtml(item.result) + '</p></section>' : ''}
-    ${item.rating ? '<section class="box"><h3>Оценка компании</h3><strong>' + item.rating.score + ' из 5</strong>' +
-      (item.rating.comment ? '<p class="copy">' + escapeHtml(item.rating.comment) + '</p>' : '') + '</section>' : ''}`
+    ${item.task ? '<section class="box"><h3>Поручение</h3><p class="copy">' + contentText(item.task, item.id) + '</p></section>' : ''}
+    ${item.result ? '<section class="box"><h3>Итог</h3><p class="copy">' + contentText(item.result, item.id) + '</p></section>' : ''}
+    ${ratingSummary(item, 'Оценка компании', item.rating)}
+    ${ratingSummary(item, 'Оценка решения', item.resolutionRating)}
+    ${item.canRateResolution ? '<button type="button" class="secondary" id="rate-resolution">Оценить решение</button>' : ''}`
+  if (item.canRateResolution) $('rate-resolution').onclick = () => showRating(item.id, 'resolutionRating')
+  translateContent(chat)
+  translateContent($('case-details'))
+  if (active && attachmentDrafts.has(String(item.id))) showFiles($('composer'), attachmentDrafts.get(String(item.id)))
+  maybePromptRating(item)
   const messages = $('chat').querySelector('.messages')
   messages.scrollTop = messages.scrollHeight
   if (sending && active) setSending($('composer'), true)
@@ -258,7 +353,7 @@ async function recommend(item) {
   const pending = $('dialog-error')
   let result
   try {
-    result = await api('cases/' + item.id + '/suggest', {})
+    result = await api('cases/' + item.id + '/suggest', { language })
   } catch (error) {
     if ($('dialog').open && pending === $('dialog-error')) modal('Рекомендация ИИ', '<p class="error">' + escapeHtml(error.message) + '</p>')
     return
@@ -291,32 +386,48 @@ function approveAnswer(item, index) {
 }
 function newCase() {
   modal('Новое обращение', `
-    <form class="action-form" data-action="create">
+    <form class="action-form new-case-form" data-action="create">
       <div class="grid">
-        <label>Тип<select name="type">${options(config.types.map(type => ({ id: type, name: typeLabel(type) })))}</select></label>
-        <label>Категория<select name="category" required>${options(config.categories, '', 'Выберите категорию')}</select></label>
+      <label>Тип<select name="type">${options(config.types.map(type => ({ id: type, name: typeLabel(type) })))}</select></label>
+      <label>Как отправить<select name="anonymous">
+        <option value="false">От моего имени</option>
+        <option value="true">Анонимно</option>
+      </select></label>
       </div>
-      <label>Приоритет<select name="priority">${options(config.priorities, 'Средний')}</select></label>
       <label>Описание<textarea name="description" required maxlength="4000" rows="5" placeholder="Что произошло или что предлагаете изменить?"></textarea></label>
-      <button>Подать обращение</button>
+      <div class="new-case-footer">
+        ${mediaControls()}
+        <button type="submit">Подать обращение ${icon('arrow')}</button>
+      </div>
     </form>`)
 }
 $('dialog').addEventListener('submit', async event => {
   event.preventDefault()
   const form = event.target
-  const button = form.querySelector('button')
+  const button = form.querySelector('button[type="submit"]') || form.querySelector('button')
   const action = form.dataset.action
   const caseId = openId
   const data = Object.fromEntries(new FormData(form))
+  if (action === 'create' && mediaWorking(form)) {
+    mediaStatus(form, 'Дождитесь окончания расшифровки.')
+    return
+  }
   button.disabled = true
   try {
+    if (action === 'moderation') {
+      await api('moderation/' + data.caseId, { id: data.id, action: data.operation, text: data.text })
+      await refresh()
+      if ($('dialog').open) await showModeration()
+      notice(data.operation === 'reply' ? 'Ответ отправлен автору.' : 'Чат удалён.')
+      return
+    }
     if (action === 'knowledge') {
       await api('cases/' + caseId + '/knowledge', { ...data, index: Number(data.index) })
       $('dialog').close()
       notice('Общий ответ добавлен в базу знаний.')
       return
     }
-    const item = action === 'create' ? await api('cases', data) :
+    const item = action === 'create' ? await api('cases', { ...data, anonymous: data.anonymous === 'true', attachments: await encodeFiles(form) }) :
       await api('cases/' + caseId, { ...data, action })
     openId = item.id
     if (action === 'create') resetFilters()
@@ -336,10 +447,24 @@ $('dialog').addEventListener('submit', async event => {
     button.disabled = false
   }
 })
-function showRating(caseId) {
+function ratingSummary(item, title, rating) {
+  if (!rating) return ''
+  return '<section class="box"><h3>' + title + '</h3><strong>' + rating.score + ' из 5</strong>' +
+    (rating.comment ? '<p class="copy">' + contentText(rating.comment, item.id) + '</p>' : '') + '</section>'
+}
+function maybePromptRating(item) {
+  if (!item?.canRateResolution || promptedRatings.has(item.id) || !$('rating-card').hidden ||
+      $('dialog').open || tour.open || (mobileWorkspace.matches && $('workspace').dataset.pane !== 'chat')) return
+  promptedRatings.add(item.id)
+  showRating(item.id, 'resolutionRating')
+}
+function showRating(caseId, kind = 'rating') {
   const form = $('rating-form')
   form.reset()
   form.dataset.caseId = caseId
+  form.dataset.kind = kind
+  $('rating-title').textContent = kind === 'resolutionRating' ? 'Вам помогли?' : 'Вам нравится наша компания?'
+  $('rating-comment').placeholder = kind === 'resolutionRating' ? 'Что помогло или что ещё нужно решить?' : 'Что вам нравится или что можно улучшить?'
   $('rating-error').hidden = true
   $('rating-card').hidden = false
   animateUi($('rating-card'), { opacity: [0, 1], y: [14, 0], scale: [.985, 1] }, { duration: .38 })
@@ -359,7 +484,7 @@ $('rating-form').addEventListener('submit', async event => {
   $('rating-error').hidden = true
   try {
     const { item, commentModerated } = await api('cases/' + caseId + '/rating', {
-      score: Number(data.get('score')), comment: data.get('comment'),
+      kind: form.dataset.kind, score: Number(data.get('score')), comment: data.get('comment'),
     })
     if (Number(form.dataset.caseId) !== caseId) return
     $('rating-card').hidden = true
@@ -411,6 +536,7 @@ $('chat').addEventListener('click', event => {
   const action = event.target.closest('[data-chat-action]')?.dataset.chatAction
   if (!action) return
   if (action === 'suggest') recommend(item)
+  else if (action === 'moderation') showModeration().catch(error => notice(error.message, true))
   else showAction(item, action)
 })
 $('chat').addEventListener('input', event => {
@@ -423,14 +549,21 @@ $('chat').addEventListener('submit', async event => {
   const key = user.id + ':' + id
   if (pendingMessages.has(key)) return
   const form = event.target
+  if (mediaWorking(form)) {
+    mediaStatus(form, 'Дождитесь окончания расшифровки.')
+    return
+  }
   const text = form.elements.text.value
   pendingMessages.add(key)
   setSending(form, true)
-  const plane = form.querySelector('.compose-row .icon')
+  const plane = form.querySelector('button[type="submit"] .icon')
   const launch = animateUi(plane, { x: [0, 7], y: [0, -7] }, { duration: .19 })
   try {
-    const item = await api('cases/' + id, { action: 'comment', text })
+    const attachments = await encodeFiles(form)
     if (config.user !== user) return
+    const item = await api('cases/' + id, { action: 'comment', text, attachments })
+    if (config.user !== user) return
+    attachmentDrafts.delete(String(id))
     notice(item.messageModerated ? 'Сообщение отправлено на модерацию.' : '')
     if (drafts.get(id) === text) drafts.delete(id)
     pendingMessages.delete(key)
@@ -504,21 +637,54 @@ async function checkInbox(show = false) {
 $('notifications').onclick = () => checkInbox(true).catch(error => notice(error.message, true))
 async function showModeration() {
   const entries = await api('moderation')
-  modal('Спам и нарушения', '<div class="audit-list">' + (entries.map(entry => `
-    <article class="audit-entry">
-      <strong>${escapeHtml(entry.reason)} · ${escapeHtml(entry.number)}</strong>
-      <small>${escapeHtml(entry.author)} · ${timeFormat.format(new Date(entry.time))}</small>
-      <p class="copy">${escapeHtml(entry.text)}</p>
-      <button type="button" class="secondary" data-restore-case="${entry.caseId}" data-restore-id="${escapeHtml(entry.id)}">Вернуть ${entry.id === 'case' ? 'во входящие' : entry.kind === 'rating' ? 'к оценке' : 'в чат'}</button>
-    </article>`).join('') || '<p class="muted">На проверке ничего нет.</p>') + '</div>')
+  modal('Спам и нарушения', '<div class="moderation-list">' + (entries.map((entry, index) => `
+    <details class="moderation-entry" ${index === 0 ? 'open' : ''}>
+      <summary>
+        <span class="moderation-entry-id">${escapeHtml(entry.number)}</span>
+        <span class="moderation-reason">${escapeHtml(entry.reason)}</span>
+        <span class="analytics-request-chevron">${icon('down')}</span>
+      </summary>
+      <div class="moderation-body">
+      <small class="muted">${escapeHtml(entry.author)} · ${timeFormat.format(new Date(entry.time))}</small>
+      <p class="copy">${contentText(entry.text, entry.caseId)}</p>
+      ${renderAttachments(entry.attachments)}
+      ${entry.replies.map(reply => '<p class="copy"><strong>Ответ по модерации</strong> · ' + contentText(reply.text, entry.caseId) + '</p>').join('')}
+      <div class="chat-actions" data-moderation-case="${entry.caseId}" data-moderation-id="${escapeHtml(entry.id)}">
+        <button type="button" data-moderation-action="reply">${icon('brand')} Ответить автору</button>
+        <button type="button" class="secondary" data-moderation-action="restore">${icon('back')} Вернуть ${entry.id === 'case' ? 'во входящие' : entry.kind ? 'к оценке' : 'в чат'}</button>
+        <button type="button" class="secondary" data-moderation-action="delete">Удалить чат</button>
+      </div>
+      </div>
+    </details>`).join('') || '<p class="moderation-empty muted">' + icon('check') + ' На проверке ничего нет.</p>') + '</div>', 'moderation')
+  for (const entry of $('dialog').querySelectorAll('.moderation-entry[open]')) translateContent(entry)
 }
+$('dialog').addEventListener('toggle', event => {
+  if (event.target.matches('.moderation-entry') && event.target.open) translateContent(event.target)
+}, true)
 $('moderation').onclick = () => showModeration().catch(error => notice(error.message, true))
 $('dialog').addEventListener('click', async event => {
-  const button = event.target.closest('[data-restore-case]')
+  const button = event.target.closest('[data-moderation-action]')
   if (!button) return
+  const { moderationAction: action } = button.dataset
+  const { moderationCase: caseId, moderationId: id } = button.parentElement.dataset
+  if (action !== 'restore') {
+    const reply = action === 'reply'
+    modal(reply ? 'Ответить автору' : 'Удалить чат', `
+      <form class="action-form" data-action="moderation">
+        <input type="hidden" name="caseId" value="${escapeHtml(caseId)}">
+        <input type="hidden" name="id" value="${escapeHtml(id)}">
+        <input type="hidden" name="operation" value="${action}">
+        ${reply ? '<label>Сообщение<textarea name="text" required maxlength="4000" rows="4"></textarea></label>' :
+          '<p>Весь чат исчезнет у автора, координатора и исполнителя.</p>'}
+        <button type="submit" ${reply ? '' : 'class="moderation-delete"'}>${reply ? 'Отправить сообщение' : 'Удалить чат'}</button>
+        <button type="button" class="secondary" id="moderation-back">Назад</button>
+      </form>`, 'moderation')
+    $('moderation-back').onclick = () => showModeration().catch(error => notice(error.message, true))
+    return
+  }
   button.disabled = true
   try {
-    await api('moderation/' + button.dataset.restoreCase, { id: button.dataset.restoreId })
+    await api('moderation/' + caseId, { id })
     await refresh()
     if ($('dialog').open && button.isConnected) await showModeration()
   } catch (error) {
@@ -575,11 +741,17 @@ setInterval(async () => {
   if (document.hidden || !config?.user) return
   void checkInbox().catch(() => {})
   void checkTelegram().catch(() => {})
-  if ($('dialog').open || profilePicker.open || tour.open || pendingMessages.size || $('workspace').contains(document.activeElement)) return
+  if ($('dialog').open || profilePicker.open || tour.open || pendingMessages.size || activeRecording ||
+      ($('composer') && mediaWorking($('composer')))) return
+  const focused = () => $('workspace').contains(document.activeElement)
+  if (focused() && config.user.role !== 'author') return
   try {
     const profile = config.user.id
     const items = await api('cases')
-    if (config.user.id !== profile || $('workspace').contains(document.activeElement) || $('dialog').open || profilePicker.open || tour.open || pendingMessages.size) return
+    if (config.user.id !== profile || $('dialog').open || profilePicker.open || tour.open || pendingMessages.size) return
+    const previous = cases.find(item => item.id === openId)
+    const current = items.find(item => item.id === openId)
+    if (focused() && !(config.user.role === 'author' && current?.canRateResolution && !previous?.canRateResolution)) return
     if (JSON.stringify(items) !== JSON.stringify(cases)) {
       cases = items
       draw()
@@ -589,14 +761,70 @@ setInterval(async () => {
   }
 }, 5000)
 
-const steps = [
-  ['#profile-form', 'Выберите роль', 'Сотрудник отправляет обращения, координатор разбирает входящие, исполнитель работает с назначенными задачами.'],
-  ['#new-case', 'Подайте обращение', 'Выберите тип и категорию, затем опишите, что произошло или какое улучшение предлагаете.'],
-  ['#search', 'Найдите нужный чат', 'Ищите по сотруднику, теме или номеру обращения. Фильтр по типу поможет найти, например, только жалобы.', 'list'],
-  ['.chat-head', 'Откройте переписку', 'В чате видны сообщения и история решений. Поле внизу отправляет сообщение участникам обращения.', 'chat'],
-  ['[data-chat-action="suggest"]', 'Действия координатора', 'Gemini предлагает черновик ответа и кандидата. Здесь же можно назначить исполнителя или поменять статус.', 'chat'],
-  ['.details-head', 'Посмотрите детали', 'В карточке указаны исполнитель, срок, приоритет и итог работы.', 'details'],
-  ['#notifications', 'Проверьте входящие', 'Счётчик показывает новые обращения. Внутри уведомлений также есть журнал действий по демо-профилям.'],
+const languageStep = ['#site-language', 'Выберите язык сайта', 'Можно переключаться между русским, казахским и английским.']
+const chatStep = ['.chat-head', 'Откройте переписку', 'В чате видны сообщения и история решений. Поле внизу отправляет сообщение участникам обращения.', 'chat']
+const detailsStep = ['.details-head', 'Посмотрите детали', 'В карточке указаны исполнитель, срок, приоритет и итог работы.', 'details']
+const guides = {
+  guest: {
+    title: 'Инструкция',
+    steps: [
+      ['#profile-form', 'Выберите роль', 'Сотрудник отправляет обращения, координатор разбирает входящие, исполнитель работает с назначенными задачами.'],
+      languageStep,
+    ],
+  },
+  author: {
+    title: 'Инструкция для сотрудника',
+    steps: [
+      ['#new-case', 'Подайте обращение', 'Выберите тип и опишите ситуацию. Для темы, которой нет в списке, выберите «Другое».'],
+      ['#new-case', 'Выберите способ отправки', 'В форме можно отправить обращение от своего имени или анонимно. При анонимной подаче имя и подразделение скрыты, а ответы доступны в вашем чате.'],
+      ['#new-case', 'Добавьте голос, фото или видео', 'Нажмите «Записать голос», чтобы получить редактируемый текст. Через «Фото или видео» можно добавить до трёх файлов общим размером до 12 МБ.'],
+      ['#new-case', 'Задайте простой вопрос', 'Выберите тип «Вопрос». Если в базе знаний есть подходящий утверждённый ответ, он появится в чате автоматически.'],
+      ['#new-case', 'Оцените компанию', 'После отправки положительного отзыва в углу появится окно. Выберите от 1 до 5 звёзд и при желании добавьте комментарий.'],
+      ['#search', 'Найдите своё обращение', 'Ищите по теме или номеру. Фильтры помогут найти нужный тип или статус.', 'list'],
+      chatStep,
+      detailsStep,
+      ['.details-head', 'Оцените решение', 'После выполнения обращения ответьте на вопрос «Вам помогли?». Поставьте от 1 до 5 звёзд и при желании напишите, что ещё нужно решить.', 'details'],
+      languageStep,
+    ],
+  },
+  admin: {
+    title: 'Инструкция для координатора',
+    steps: [
+      ['#search', 'Найдите нужный чат', 'Ищите по сотруднику, теме или номеру обращения. Фильтр по типу поможет найти, например, только жалобы.', 'list'],
+      ['.chat-head', 'Разберите обращение', 'В чате видны сообщения и история. У анонимных обращений имя и подразделение автора скрыты.', 'chat'],
+      ['[data-chat-action="suggest"]', 'Используйте рекомендацию ИИ', 'Gemini предлагает черновик ответа, поручение и исполнителя. Проверьте предложение перед отправкой.', 'chat'],
+      ['[data-chat-action="assign"]', 'Назначьте исполнителя', 'Нажмите «Поручить», выберите исполнителя и укажите срок. Кнопка «Изменить статус» позволяет запросить уточнение или зафиксировать итог.', 'chat'],
+      ['[data-chat-action="priority"]', 'Укажите приоритет', 'Выберите P1 для срочного обращения, P2 для обычного или P3 для низкого приоритета.', 'chat'],
+      ['.chat-head', 'Сохраните ответ в базу знаний', 'Под своим сообщением нажмите «Сохранить как общий ответ». Утверждённый ответ можно использовать для похожих вопросов.', 'chat'],
+      ['#notifications', 'Проверьте входящие', 'Счётчик показывает новые обращения. Внутри уведомлений также есть журнал действий по демо-профилям.'],
+      ['#moderation', 'Проверьте спам', 'В разделе «Спам и нарушения» можно прочитать исходный текст, ответить автору, вернуть сообщение или удалить чат.'],
+      ['#telegram', 'Подключите Telegram', 'Откройте бота по ссылке и нажмите «Старт». В Telegram будут приходить новые обращения с полным текстом.'],
+      ['#open-analytics', 'Откройте аналитику', 'Здесь можно проверить просрочки, открыть обращения по типу или статусу, посмотреть оценки и скачать отчёт.'],
+      ['#open-repeats', 'Найдите повторяющиеся проблемы', 'Откройте вкладку, чтобы увидеть похожие жалобы и решения, сохранённые по каждой из них.'],
+      ['.details-head', 'Посмотрите оценку компании', 'Оценка и комментарий сотрудника появятся в карточке положительного отзыва.', 'details'],
+      languageStep,
+    ],
+  },
+  owner: {
+    title: 'Инструкция для исполнителя',
+    steps: [
+      ['#search', 'Найдите назначенное обращение', 'Используйте поиск и фильтры, чтобы найти нужное поручение.', 'list'],
+      detailsStep,
+      chatStep,
+      ['[data-chat-action="status"]', 'Обновите статус работы', 'Запросите уточнение у автора или укажите итог, когда работа завершена.', 'chat'],
+      languageStep,
+    ],
+  },
+}
+const analyticsGuide = [
+  ['#analytics-stats', 'Оцените нагрузку', 'Сводка показывает общее число обращений, сколько из них открыты, завершены или просрочены.'],
+  ['#analytics-type-heading', 'Изучите диаграмму', 'Нажмите на сектор диаграммы или строку в легенде, чтобы открыть список обращений этого типа. Нажмите на обращение, чтобы прочитать текст.'],
+  ['#analytics-status-heading', 'Отфильтруйте по статусу', 'Нажмите на статус, чтобы увидеть соответствующие обращения. Заголовок «Обращения по статусам» откроет весь список.'],
+  ['[data-rating-toggle="rating"]', 'Проверьте оценки', 'Нажмите на заголовок оценки компании или решения, чтобы увидеть все звёзды и комментарии. Раздел «1–2 звезды» показывает низкие оценки.'],
+  ['#download-report', 'Скачайте отчёт', 'PDF содержит круговую диаграмму, общие показатели и разбивку по статусам на выбранном языке.'],
+]
+const repeatGuide = [
+  ['#repeat-groups', 'Найдите повторяющиеся проблемы', 'Откройте группу и раскройте обращение, чтобы прочитать жалобу и принятое решение.'],
 ]
 let tourSteps = []
 let tourIndex = 0
@@ -738,10 +966,15 @@ function showStep(direction = 1) {
 }
 $('instructions').onclick = () => {
   tourOrigin = { pane: $('workspace').dataset.pane, scroll: window.scrollY }
+  const guide = guides[config?.user?.role || 'guest']
+  $('tour-role').textContent = guide.title
+  $('tour-page-note').hidden = Boolean(config?.user)
+  const steps = !$('repeats').hidden ? repeatGuide : $('analytics').hidden ? guide.steps : analyticsGuide
   tourSteps = steps.filter(([selector, , , pane]) => {
     const target = document.querySelector(selector)
     return target && (pane ? !$('workspace').hidden : target.getClientRects().length)
   })
+  if (!tourSteps.length) return
   $('tour-progress').innerHTML = '<span></span>'.repeat(tourSteps.length)
   tourIndex = 0
   showStep()
@@ -779,14 +1012,14 @@ function setProfile(profile) {
 
 function drawProfileOptions() {
   const selected = $('profile').value
-  const query = $('profile-search').value.trim().toLocaleLowerCase('ru')
+  const query = $('profile-search').value.trim().toLocaleLowerCase(locale)
   $('profile-roles').querySelectorAll('button').forEach(button => {
     button.setAttribute('aria-pressed', String(button.dataset.profileRole === profileRole))
   })
   const groups = Object.entries(roleNames).map(([role, label]) => {
     if (profileRole && role !== profileRole) return ''
     const profiles = config.profiles.filter(profile => profile.role === role &&
-      [profile.name, profile.department, label].join(' ').toLocaleLowerCase('ru').includes(query))
+      [profile.name, profile.department, label].map(translate).join(' ').toLocaleLowerCase(locale).includes(query))
     if (!profiles.length) return ''
     const heading = !profileRole && profiles[0].name !== label ? '<h3>' + label + '</h3>' : ''
     return '<div class="profile-group">' + heading + profiles.map(profile => `
@@ -826,8 +1059,12 @@ $('profile-options').addEventListener('click', event => {
   if (!button) return
   const profile = config.profiles.find(entry => entry.id === button.dataset.profileId)
   if (!profile) return
-  setProfile(profile)
   profilePicker.close()
+  if (config.user) {
+    if (profile.id !== config.user.id) void switchProfile(profile.id)
+    return
+  }
+  setProfile(profile)
   $('profile-form').querySelector('button[type="submit"]').focus({ preventScroll: true })
 })
 profilePicker.addEventListener('keydown', event => {
@@ -851,18 +1088,24 @@ $('welcome').addEventListener('click', event => {
   const role = event.target.closest('[data-role]')?.dataset.role
   if (role) openProfilePicker(role)
 })
-$('profile-form').addEventListener('submit', async event => {
+$('profile-form').addEventListener('submit', event => {
   event.preventDefault()
-  if (!$('profile').value) return openProfilePicker()
-  const button = event.target.querySelector('button[type="submit"]')
+  const profileId = $('profile').value
+  if (config?.user || !profileId) return openProfilePicker()
+  void switchProfile(profileId)
+})
+async function switchProfile(profileId) {
+  const button = $('profile-form').querySelector('button[type="submit"]')
+  if (button.disabled) return
   button.disabled = true
   $('profile-trigger').disabled = true
   try {
-    config.user = await api('session', { profile: $('profile').value })
+    config.user = await api('session', { profile: profileId })
     $('rating-card').hidden = true
     delete $('rating-form').dataset.caseId
     resetFilters()
     drafts.clear()
+    attachmentDrafts.clear()
     openId = null
     showPane('list')
     notice('')
@@ -879,8 +1122,16 @@ $('profile-form').addEventListener('submit', async event => {
     button.disabled = false
     $('profile-trigger').disabled = false
   }
-})
+}
 async function init() {
+  await initializeLanguage()
+  if (!reducedMotion.matches) {
+    const intro = $('brand-intro')
+    intro.addEventListener('animationend', event => {
+      if (event.target === intro) intro.hidden = true
+    })
+    intro.hidden = false
+  }
   config = await api('config')
   $('type-filter').innerHTML = options(config.types.map(type => ({ id: type, name: typeLabel(type) })), '', 'Все типы обращений')
   $('status-filter').innerHTML = options(config.statuses, '', 'Все статусы')

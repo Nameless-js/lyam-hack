@@ -7,6 +7,10 @@
   <title>Контур — обращения сотрудников</title>
   <link rel="stylesheet" href="/style.css">
   <script src="/motion-14.12.0.js" defer></script>
+  <script src="/i18n.js" defer></script>
+  <script src="/analytics.js" defer></script>
+  <script src="/repeats.js" defer></script>
+  <script src="/media-input.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -29,12 +33,31 @@
     <symbol id="icon-send" viewBox="0 0 24 24"><path d="m3 10 18-7-7 18-3-8-8-3Zm8 3L21 3"/></symbol>
     <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
     <symbol id="icon-details" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8m-8 4h8m-8 4h5"/></symbol>
+    <symbol id="icon-camera" viewBox="0 0 24 24"><path d="M4 7h4l2-3h4l2 3h4a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+    <symbol id="icon-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M6 11v1a6 6 0 0 0 12 0v-1m-6 7v3m-3 0h6"/></symbol>
+    <symbol id="icon-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol>
+    <symbol id="icon-play" viewBox="0 0 24 24"><path d="m9 5 11 7-11 7Z"/></symbol>
+    <symbol id="icon-expand" viewBox="0 0 24 24"><path d="M9 4H4v5m11-5h5v5M4 15v5h5m11-5v5h-5"/></symbol>
     <symbol id="icon-spark" viewBox="0 0 24 24"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z"/></symbol>
   </svg>
+  <div id="brand-intro" class="brand-intro" aria-hidden="true" hidden>
+    <div class="intro-lockup">
+      <div class="intro-mark">
+        <span class="logo"><svg class="icon" aria-hidden="true"><use href="#icon-brand"/></svg></span>
+        <span class="intro-name"><span>Контур</span></span>
+      </div>
+      <p class="intro-company">ГК «Модус Трейд»</p>
+    </div>
+  </div>
   <header class="top">
     <div class="top-inner">
       <div class="brand"><span class="logo"><svg class="icon" aria-hidden="true"><use href="#icon-brand"/></svg></span><span>Контур</span></div>
       <span class="company">ГК «Модус Трейд»</span>
+      <select id="site-language" aria-label="Язык сайта">
+        <option value="ru">Русский</option>
+        <option value="kk">Казахский</option>
+        <option value="en">Английский</option>
+      </select>
       <button id="instructions" type="button" class="quiet" aria-haspopup="dialog"><svg class="icon" aria-hidden="true"><use href="#icon-help"/></svg>Инструкция</button>
       <div id="profile-slot" hidden></div>
     </div>
@@ -45,7 +68,7 @@
       <div class="hero">
         <div class="hero-copy">
           <p class="eyebrow">Обратная связь сотрудников</p>
-          <h1>Обращения<br>сотрудников</h1>
+          <h1>Обращения сотрудников</h1>
           <p class="hero-description">Задавайте вопросы, делитесь предложениями и следите за тем, как решаются ваши обращения.</p>
           <div id="welcome-profile">
             <form id="profile-form">
@@ -86,6 +109,8 @@
     <section class="intro" id="workspace-intro" hidden>
       <div><p class="eyebrow" id="role-label"></p><h1 id="heading" tabindex="-1">Обращения сотрудников</h1><p id="subtitle"></p></div>
       <div class="header-actions">
+        <a id="open-analytics" class="analytics-link" href="#analytics" hidden>Аналитика</a>
+        <a id="open-repeats" class="analytics-link" href="#repeats" hidden>Повторяющиеся проблемы</a>
         <button id="notifications" type="button" class="secondary" hidden><svg class="icon" aria-hidden="true"><use href="#icon-bell"/></svg>Уведомления <span id="unread" hidden></span></button>
         <button id="moderation" type="button" class="secondary" hidden><svg class="icon" aria-hidden="true"><use href="#icon-shield"/></svg>Спам и нарушения</button>
         <button id="telegram" type="button" class="secondary" hidden><svg class="icon" aria-hidden="true"><use href="#icon-send"/></svg><span id="telegram-label">Подключить Telegram</span></button>
@@ -112,6 +137,26 @@
       <section id="chat" class="inbox-chat" aria-label="Переписка"></section>
       <aside id="case-details" class="inbox-right" aria-label="Детали обращения"></aside>
     </section>
+    <section id="analytics" class="analytics" aria-labelledby="analytics-heading" hidden>
+      <div class="intro analytics-head">
+        <div>
+          <a class="analytics-back" href="#main"><svg class="icon" aria-hidden="true"><use href="#icon-back"/></svg><span>К обращениям</span></a>
+          <h1 id="analytics-heading" tabindex="-1">Аналитика</h1>
+          <p class="analytics-subtitle">Статусы обращений, просрочки и оценки сотрудников</p>
+        </div>
+        <div class="header-actions"><button id="download-report" type="button">
+          <svg class="icon" aria-hidden="true"><use href="#icon-details"/></svg>Скачать отчёт PDF
+        </button></div>
+      </div>
+      <div id="analytics-content"></div>
+    </section>
+    <section id="repeats" class="analytics" aria-labelledby="repeats-heading" hidden>
+      <div class="intro analytics-head">
+        <div><a class="analytics-back" href="#main"><svg class="icon" aria-hidden="true"><use href="#icon-back"/></svg><span>К обращениям</span></a>
+          <h1 id="repeats-heading" tabindex="-1">Повторяющиеся проблемы</h1></div>
+      </div>
+      <div id="repeat-groups"></div>
+    </section>
   </main>
   <dialog id="profile-picker" aria-labelledby="profile-picker-title">
     <div class="profile-picker-head">
@@ -130,12 +175,20 @@
     <div id="profile-options"></div>
   </dialog>
   <dialog id="dialog" aria-labelledby="dialog-title"><div id="dialog-content"></div></dialog>
+  <dialog id="media-viewer" aria-labelledby="media-viewer-title">
+    <header class="media-viewer-head">
+      <h2 id="media-viewer-title" data-original-text></h2>
+      <a id="media-viewer-download" download>Скачать</a>
+      <button id="media-viewer-close" class="secondary" type="button" aria-label="Закрыть" autofocus>×</button>
+    </header>
+    <div id="media-viewer-body"></div>
+  </dialog>
   <dialog id="tour" aria-labelledby="tour-title" aria-describedby="tour-description">
     <div id="tour-glass" aria-hidden="true"></div>
     <div id="tour-card">
       <div class="tour-header">
         <span class="tour-icon"><svg class="icon" aria-hidden="true"><use href="#icon-help"/></svg></span>
-        <div><strong>Инструкция</strong><p id="tour-counter"></p></div>
+        <div><strong id="tour-role">Инструкция</strong><p id="tour-counter"></p></div>
         <button type="button" class="quiet icon-button" data-tour="close" aria-label="Закрыть инструкцию">×</button>
       </div>
       <div id="tour-progress" aria-hidden="true"></div>
@@ -147,6 +200,7 @@
         <button type="button" class="secondary" data-tour="back" hidden><svg class="icon" aria-hidden="true"><use href="#icon-back"/></svg>Назад</button>
         <button type="button" data-tour="next" autofocus><span id="tour-next"></span><svg class="icon" aria-hidden="true"><use href="#icon-arrow"/></svg></button>
       </div>
+      <p id="tour-page-note" class="tour-page-note" hidden>На каждой странице есть своя инструкция.</p>
     </div>
   </dialog>
   <aside id="rating-card" class="rating-card" aria-labelledby="rating-title" hidden>

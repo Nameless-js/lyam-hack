@@ -289,6 +289,25 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost')
     const route = url.pathname
+    if (req.method === 'GET' && route === '/supcenter-promo.mp4') {
+      const file = path.join(__dirname, 'public', 'supcenter-promo.mp4')
+      const size = fs.statSync(file).size
+      const range = req.headers.range
+      const match = range?.match(/^bytes=(\d*)-(\d*)$/)
+      const start = match?.[1] ? Number(match[1]) : match?.[2] ? Math.max(0, size - Number(match[2])) : 0
+      const end = match?.[1] && match[2] ? Math.min(size - 1, Number(match[2])) : size - 1
+      if (range && (!match || !(match[1] || match[2]) || start > end)) {
+        res.writeHead(416, { 'Content-Range': 'bytes */' + size })
+        return res.end()
+      }
+      const headers = { 'Content-Type': 'video/mp4', 'Accept-Ranges': 'bytes', 'Content-Length': end - start + 1 }
+      if (range) headers['Content-Range'] = `bytes ${start}-${end}/${size}`
+      res.writeHead(range ? 206 : 200, headers)
+      const stream = fs.createReadStream(file, { start, end })
+      res.on('close', () => stream.destroy())
+      stream.on('error', error => res.destroy(error))
+      return stream.pipe(res)
+    }
     if (req.method === 'GET' && (route === '/pdfmake.js' || route === '/pdfmake-fonts.js')) {
       const file = path.join(__dirname, 'node_modules', 'pdfmake', 'build',
         route === '/pdfmake.js' ? 'pdfmake.min.js' : 'vfs_fonts.js')
@@ -301,6 +320,11 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': mime + '; charset=utf-8', 'Cache-Control': 'no-cache' })
       if (route === '/') audit(userFrom(req), 'Открыл сайт')
       return res.end(fs.readFileSync(path.join(__dirname, 'public', name)))
+    }
+    if (req.method === 'DELETE' && route === '/api/session') {
+      const token = (req.headers.cookie || '').match(/(?:^|;\s*)sid=([\w-]+)/)?.[1]
+      sessions.delete(token)
+      return send(res, 200, null, { 'Set-Cookie': 'sid=; Max-Age=0; HttpOnly; SameSite=Strict; Path=/' })
     }
     if (req.method === 'POST' && route === '/api/session') {
       const data = await body(req)

@@ -89,13 +89,11 @@ function drawAnalytics() {
         aria-pressed="${selectedRequestStatus === null}">Обращения по статусам ${icon('down')}</button></h2>
         <ul class="chart-list chart-legend">${rows(statuses)}</ul></section>
     </div>
-    <section id="analytics-requests" class="analytics-panel analytics-followup" hidden></section>
     <div id="analytics-ratings" class="analytics-panels analytics-followup">
       ${ratingPanel('Оценка компании', 'rating')}
       ${ratingPanel('Оценка решения', 'resolutionRating')}
     </div>`
   if (total) mountPie(types, total)
-  drawAnalyticsRequests()
   for (const group of $('analytics-ratings').querySelectorAll('.analytics-all-ratings:not([hidden])')) translateContent(group)
 }
 
@@ -128,17 +126,19 @@ function ratingPanel(title, key) {
     </details></section>`
 }
 
-function drawAnalyticsRequests() {
+const analyticsDrilldown = document.getElementById('analytics-drilldown')
+
+function openAnalyticsRequests() {
   const panel = $('analytics-requests')
   const items = cases.filter(item => selectedRequestStatus === null ||
     (selectedRequestStatus === undefined ? item.type === selectedRequestType : requestStatus(item) === selectedRequestStatus))
     .sort((a, b) => Number(b.overdue) - Number(a.overdue))
   const title = selectedRequestStatus === null ? 'Все обращения' : selectedRequestStatus ?? typeLabel(selectedRequestType)
-  panel.hidden = !items.length
-  panel.innerHTML = items.length ? `
-    <h2 class="analytics-panel-heading"><span class="role-icon">${icon('details')}</span>${escapeHtml(title)}<span class="analytics-result-count">· ${items.length}</span></h2>
-    <div class="request-card-list">${items.map(item => `
-      <details class="analytics-request" data-preview-case="${item.id}" ${expandedAnalyticsRequests.has(String(item.id)) ? 'open' : ''}>
+  if (!items.length) return
+  $('analytics-drilldown-title').innerHTML = `<span class="role-icon">${icon('details')}</span><span>${escapeHtml(title)}</span><span class="analytics-result-count">· ${items.length}</span>`
+  panel.innerHTML = `
+    <div class="request-card-list">${items.map((item, index) => `
+      <details class="analytics-request" style="--row-delay:${Math.min(index, 7) * 28}ms" data-preview-case="${item.id}" ${expandedAnalyticsRequests.has(String(item.id)) ? 'open' : ''}>
         <summary>
           <span class="analytics-request-identity">
             <span class="analytics-request-number">${item.number}</span>
@@ -155,11 +155,19 @@ function drawAnalyticsRequests() {
           <p class="copy">${item.moderated ? 'Обращение с нарушениями перемещено в спам.' : contentText(item.description, item.id)}</p>
           <button type="button" class="secondary" data-analytics-case="${item.id}">${icon('brand')} Открыть переписку ${icon('arrow')}</button>
         </div>
-      </details>`).join('')}</div>` : ''
+      </details>`).join('')}</div>`
   for (const preview of panel.querySelectorAll('.analytics-request[open]')) translateContent(preview)
+  if (!analyticsDrilldown.open) analyticsDrilldown.showModal()
+  panel.scrollTop = 0
+  animateUi(analyticsDrilldown, { opacity: [0, 1], x: [42, 0], y: [10, 0], scale: [.985, 1] }, { duration: .34 })
 }
 
-document.getElementById('analytics-content').addEventListener('toggle', event => {
+document.getElementById('close-analytics-drilldown').onclick = () => analyticsDrilldown.close()
+analyticsDrilldown.addEventListener('click', event => {
+  if (event.target === analyticsDrilldown) analyticsDrilldown.close()
+})
+
+document.getElementById('analytics').addEventListener('toggle', event => {
   const preview = event.target
   if (preview.matches('.analytics-low-ratings') && preview.open && preview.isConnected) translateContent(preview)
   if (!preview.matches('.analytics-request') || !preview.isConnected) return
@@ -169,15 +177,18 @@ document.getElementById('analytics-content').addEventListener('toggle', event =>
   } else expandedAnalyticsRequests.delete(preview.dataset.previewCase)
 }, true)
 
-document.getElementById('analytics-content').addEventListener('click', event => {
+document.getElementById('analytics').addEventListener('click', event => {
   const statusButton = event.target.closest('[data-analytics-status]')
   const ratingButton = event.target.closest('[data-rating-toggle]')
   if (statusButton) {
     const status = statusButton.dataset.analyticsStatus || null
     selectedRequestType = undefined
-    selectedRequestStatus = selectedRequestStatus === status ? undefined : status
+    selectedRequestStatus = status
     drawAnalytics()
-    if (selectedRequestStatus !== undefined) scrollToAnalyticsRequests()
+    const replacement = [...$('analytics-content').querySelectorAll('[data-analytics-status]')]
+      .find(button => button.dataset.analyticsStatus === statusButton.dataset.analyticsStatus)
+    replacement?.focus({ preventScroll: true })
+    openAnalyticsRequests()
     return
   }
   if (ratingButton) {
@@ -193,7 +204,10 @@ document.getElementById('analytics-content').addEventListener('click', event => 
     return
   }
   const button = event.target.closest('[data-analytics-case]')
-  if (button) openCoordinatorCase(Number(button.dataset.analyticsCase))
+  if (button) {
+    if (analyticsDrilldown.open) analyticsDrilldown.close()
+    openCoordinatorCase(Number(button.dataset.analyticsCase))
+  }
 })
 function openCoordinatorCase(id) {
   if (config?.user?.role !== 'admin') return
@@ -205,12 +219,6 @@ function openCoordinatorCase(id) {
   showPane('chat', true)
   $('chat-heading')?.focus({ preventScroll: true })
 }
-function scrollToAnalyticsRequests() {
-  const panel = $('analytics-requests')
-  panel.scrollIntoView({ behavior: reducedMotion.matches ? 'instant' : 'smooth', block: 'start' })
-  animateUi(panel, { opacity: [.6, 1], y: [10, 0] }, { duration: .32 })
-}
-
 function mountPie(items, total) {
   const chart = document.querySelector('.chart-pie')
   const canvas = chart.querySelector('canvas')
@@ -300,8 +308,9 @@ function mountPie(items, total) {
     }
   })
   canvas.addEventListener('pointerleave', () => select(pinned))
-  function togglePinned(index) {
-    pinned = pinned === index ? -1 : index
+  function openSector(index) {
+    if (index < 0) return
+    pinned = index
     selectedRequestType = items[pinned]?.type
     if (selectedRequestStatus !== undefined) {
       selectedRequestStatus = undefined
@@ -310,16 +319,15 @@ function mountPie(items, total) {
     }
     buttons.forEach((button, i) => button.setAttribute('aria-pressed', String(i === pinned)))
     select(pinned)
-    drawAnalyticsRequests()
-    if (pinned >= 0) scrollToAnalyticsRequests()
+    openAnalyticsRequests()
   }
-  canvas.addEventListener('click', event => togglePinned(sectorAt(event)))
+  canvas.addEventListener('click', event => openSector(sectorAt(event)))
   buttons.forEach((button, index) => {
     button.addEventListener('pointerenter', () => select(index))
     button.addEventListener('pointerleave', () => select(pinned))
     button.addEventListener('focus', () => select(index))
     button.addEventListener('blur', () => select(pinned))
-    button.addEventListener('click', () => togglePinned(index))
+    button.addEventListener('click', () => openSector(index))
   })
   pinned = items.findIndex(item => item.type === selectedRequestType)
   if (pinned >= 0) {

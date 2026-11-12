@@ -1,5 +1,10 @@
-Контур — обращения сотрудников|Kontur — Employee requests|Контур — Қызметкерлердің өтініштері
-Контур|Kontur|Контур
+SupCenter — обращения сотрудников|SupCenter — Employee requests|SupCenter — Қызметкерлердің өтініштері
+Подробнее о сервисе|About the service|Сервис туралы толығырақ
+Рекомендуем жюри|Recommended for judges|Қазылар алқасына ұсынамыз
+Не удалось вернуться на главную.|Could not return to the home page.|Басты бетке оралу мүмкін болмады.
+Подтвердите вход|Confirm sign-in|Кіруді растаңыз
+Подключить уведомления|Enable notifications|Хабарландыруларды қосу
+Уведомления подключены|Notifications enabled|Хабарландырулар қосылды
 ГК «Модус Трейд»|Modus Trade Group|«Модус Трейд» компаниялар тобы
 Язык сайта|Site language|Сайт тілі
 Русский|Russian|Орысша

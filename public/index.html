@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#edf1f6">
-  <title>Контур — обращения сотрудников</title>
+  <title>SupCenter — обращения сотрудников</title>
   <link rel="stylesheet" href="/style.css">
   <script src="/motion-14.12.0.js" defer></script>
   <script src="/i18n.js" defer></script>
@@ -31,6 +31,7 @@
     <symbol id="icon-bell" viewBox="0 0 24 24"><path d="M18 10a6 6 0 1 0-12 0c0 5-2 6-2 7h16c0-1-2-2-2-7Zm-8 10h4"/></symbol>
     <symbol id="icon-shield" viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.5 3 7.7 7 10 4-2.3 7-5.5 7-10V6l-7-3Z"/><path d="M12 8v4m0 3h.01"/></symbol>
     <symbol id="icon-send" viewBox="0 0 24 24"><path d="m3 10 18-7-7 18-3-8-8-3Zm8 3L21 3"/></symbol>
+    <symbol id="icon-telegram" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#229ed9" stroke="none"/><path d="m5.8 11.7 12.1-4.8-2.2 10.5-3.6-2.8-2 1.9.3-3.4 5.7-4.2-7.1 3.8Z" fill="white" stroke="none"/></symbol>
     <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
     <symbol id="icon-details" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8m-8 4h8m-8 4h5"/></symbol>
     <symbol id="icon-camera" viewBox="0 0 24 24"><path d="M4 7h4l2-3h4l2 3h4a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/><circle cx="12" cy="13" r="3.5"/></symbol>
@@ -44,21 +45,28 @@
     <div class="intro-lockup">
       <div class="intro-mark">
         <span class="logo"><svg class="icon" aria-hidden="true"><use href="#icon-brand"/></svg></span>
-        <span class="intro-name"><span>Контур</span></span>
+        <span class="intro-name"><span>SupCenter</span></span>
       </div>
       <p class="intro-company">ГК «Модус Трейд»</p>
     </div>
   </div>
   <header class="top">
     <div class="top-inner">
-      <div class="brand"><span class="logo"><svg class="icon" aria-hidden="true"><use href="#icon-brand"/></svg></span><span>Контур</span></div>
+      <div class="brand"><span class="logo"><svg class="icon" aria-hidden="true"><use href="#icon-brand"/></svg></span><span>SupCenter</span></div>
       <span class="company">ГК «Модус Трейд»</span>
       <select id="site-language" aria-label="Язык сайта">
         <option value="ru">Русский</option>
         <option value="kk">Казахский</option>
         <option value="en">Английский</option>
       </select>
-      <button id="instructions" type="button" class="quiet" aria-haspopup="dialog"><svg class="icon" aria-hidden="true"><use href="#icon-help"/></svg>Инструкция</button>
+      <fieldset class="jury-guide">
+        <legend>Рекомендуем жюри</legend>
+        <div class="jury-guide-actions">
+          <button id="instructions" type="button" class="quiet" aria-haspopup="dialog"><svg class="icon" aria-hidden="true"><use href="#icon-help"/></svg>Инструкция</button>
+          <button id="about-service" type="button" class="quiet" aria-haspopup="dialog"><svg class="icon" aria-hidden="true"><use href="#icon-play"/></svg>Подробнее о сервисе</button>
+        </div>
+      </fieldset>
+      <button id="back-to-welcome" type="button" class="quiet" hidden><svg class="icon" aria-hidden="true"><use href="#icon-back"/></svg>Назад</button>
       <div id="profile-slot" hidden></div>
     </div>
   </header>
@@ -113,7 +121,7 @@
         <a id="open-repeats" class="analytics-link" href="#repeats" hidden>Повторяющиеся проблемы</a>
         <button id="notifications" type="button" class="secondary" hidden><svg class="icon" aria-hidden="true"><use href="#icon-bell"/></svg>Уведомления <span id="unread" hidden></span></button>
         <button id="moderation" type="button" class="secondary" hidden><svg class="icon" aria-hidden="true"><use href="#icon-shield"/></svg>Спам и нарушения</button>
-        <button id="telegram" type="button" class="secondary" hidden><svg class="icon" aria-hidden="true"><use href="#icon-send"/></svg><span id="telegram-label">Подключить Telegram</span></button>
+        <button id="telegram" type="button" class="secondary" hidden><svg class="icon" aria-hidden="true"><use href="#icon-telegram"/></svg><span id="telegram-label">Подключить уведомления</span></button>
         <button id="new-case" type="button" hidden><svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>Новое обращение</button>
       </div>
     </section>
@@ -149,6 +157,13 @@
         </button></div>
       </div>
       <div id="analytics-content"></div>
+      <dialog id="analytics-drilldown" aria-labelledby="analytics-drilldown-title">
+        <header class="analytics-drilldown-head">
+          <h2 id="analytics-drilldown-title" class="analytics-panel-heading"></h2>
+          <button id="close-analytics-drilldown" class="secondary icon-button" type="button" aria-label="Закрыть" autofocus>×</button>
+        </header>
+        <div id="analytics-requests"></div>
+      </dialog>
     </section>
     <section id="repeats" class="analytics" aria-labelledby="repeats-heading" hidden>
       <div class="intro analytics-head">
@@ -175,6 +190,13 @@
     <div id="profile-options"></div>
   </dialog>
   <dialog id="dialog" aria-labelledby="dialog-title"><div id="dialog-content"></div></dialog>
+  <dialog id="service-video" aria-labelledby="service-video-title">
+    <header class="media-viewer-head">
+      <h2 id="service-video-title">Подробнее о сервисе</h2>
+      <button id="close-service-video" class="secondary" type="button" aria-label="Закрыть" autofocus>×</button>
+    </header>
+    <video controls playsinline preload="none" src="/supcenter-promo.mp4"></video>
+  </dialog>
   <dialog id="media-viewer" aria-labelledby="media-viewer-title">
     <header class="media-viewer-head">
       <h2 id="media-viewer-title" data-original-text></h2>

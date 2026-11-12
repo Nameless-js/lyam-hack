@@ -125,6 +125,7 @@ function showRole() {
   $(user ? 'profile-slot' : 'welcome-profile').append($('profile-form'))
   $('profile-submit-label').textContent = user ? 'Сменить' : 'Войти'
   $('profile-slot').hidden = !user
+  $('back-to-welcome').hidden = !user
   $('welcome').hidden = Boolean(user)
   $('workspace-intro').hidden = !user
   $('role-label').textContent = roleNames[user?.role] || ''
@@ -696,7 +697,7 @@ async function checkTelegram() {
   if (config?.user?.role !== 'admin') return
   const status = await api('telegram')
   if (config?.user?.role === 'admin') {
-    $('telegram-label').textContent = status.connected ? 'Telegram подключён' : 'Подключить Telegram'
+    $('telegram-label').textContent = status.connected ? 'Уведомления подключены' : 'Подключить уведомления'
   }
   return status
 }
@@ -711,7 +712,7 @@ $('telegram').onclick = async () => {
         try {
           const response = await fetch('/api/telegram', { method: 'DELETE' })
           if (!response.ok) throw new Error('Не удалось отключить Telegram.')
-          $('telegram-label').textContent = 'Подключить Telegram'
+          $('telegram-label').textContent = 'Подключить уведомления'
           $('dialog').close()
         } catch (error) {
           $('dialog-error').textContent = error.message
@@ -720,7 +721,7 @@ $('telegram').onclick = async () => {
       }
     } else {
       const { url } = await api('telegram', {})
-      modal('Подключить Telegram', '<p>Откройте бота и нажмите «Старт». Ссылка действует пять минут.</p><a href="' +
+      modal('Подключить уведомления', '<p>Откройте бота и нажмите «Старт». Ссылка действует пять минут.</p><a href="' +
         escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">Открыть бота в Telegram</a>')
     }
   } catch (error) {
@@ -741,14 +742,14 @@ setInterval(async () => {
   if (document.hidden || !config?.user) return
   void checkInbox().catch(() => {})
   void checkTelegram().catch(() => {})
-  if ($('dialog').open || profilePicker.open || tour.open || pendingMessages.size || activeRecording ||
+  if ($('dialog').open || analyticsDrilldown.open || profilePicker.open || tour.open || pendingMessages.size || activeRecording ||
       ($('composer') && mediaWorking($('composer')))) return
   const focused = () => $('workspace').contains(document.activeElement)
   if (focused() && config.user.role !== 'author') return
   try {
     const profile = config.user.id
     const items = await api('cases')
-    if (config.user.id !== profile || $('dialog').open || profilePicker.open || tour.open || pendingMessages.size) return
+    if (config.user?.id !== profile || $('dialog').open || analyticsDrilldown.open || profilePicker.open || tour.open || pendingMessages.size) return
     const previous = cases.find(item => item.id === openId)
     const current = items.find(item => item.id === openId)
     if (focused() && !(config.user.role === 'author' && current?.canRateResolution && !previous?.canRateResolution)) return
@@ -1065,6 +1066,7 @@ $('profile-options').addEventListener('click', event => {
     return
   }
   setProfile(profile)
+  $('profile-submit-label').textContent = 'Подтвердите вход'
   $('profile-form').querySelector('button[type="submit"]').focus({ preventScroll: true })
 })
 profilePicker.addEventListener('keydown', event => {
@@ -1094,6 +1096,33 @@ $('profile-form').addEventListener('submit', event => {
   if (config?.user || !profileId) return openProfilePicker()
   void switchProfile(profileId)
 })
+const serviceVideo = $('service-video')
+$('about-service').onclick = () => {
+  serviceVideo.showModal()
+  animateUi(serviceVideo, { opacity: [0, 1], y: [10, 0], scale: [.985, 1] }, { duration: .32 })
+}
+$('close-service-video').onclick = () => serviceVideo.close()
+serviceVideo.addEventListener('click', event => {
+  if (event.target === serviceVideo) serviceVideo.close()
+})
+serviceVideo.addEventListener('close', () => serviceVideo.querySelector('video').pause())
+
+$('back-to-welcome').onclick = async () => {
+  if (!$('analytics').hidden || !$('repeats').hidden) {
+    location.hash = 'main'
+    return
+  }
+  const button = $('back-to-welcome')
+  button.disabled = true
+  try {
+    const response = await fetch('/api/session', { method: 'DELETE' })
+    if (!response.ok) throw new Error('Не удалось вернуться на главную.')
+    location.assign('/')
+  } catch (error) {
+    notice(error.message, true)
+    button.disabled = false
+  }
+}
 async function switchProfile(profileId) {
   const button = $('profile-form').querySelector('button[type="submit"]')
   if (button.disabled) return

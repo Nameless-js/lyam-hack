@@ -184,7 +184,10 @@
         </div>
         <button id="publish-improvement" type="button" hidden><svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>Опубликовать изменение</button>
       </div>
-      <div id="improvement-feed" aria-live="polite"></div>
+      <div class="improvement-layout">
+        <div id="improvement-feed" aria-live="polite"></div>
+        <aside id="feed-my-request" aria-labelledby="feed-my-request-title" hidden></aside>
+      </div>
     </section>
   </main>
   <dialog id="profile-picker" aria-labelledby="profile-picker-title">
@@ -209,7 +212,7 @@
       <h2 id="service-video-title">Подробнее о сервисе</h2>
       <button id="close-service-video" class="secondary" type="button" aria-label="Закрыть" autofocus>×</button>
     </header>
-    <video controls playsinline preload="none" src="/supcenter-promo.mp4"></video>
+    <video controls playsinline preload="none" src="/supcenter-promo.mp4?v=2"></video>
   </dialog>
   <dialog id="media-viewer" aria-labelledby="media-viewer-title">
     <header class="media-viewer-head">

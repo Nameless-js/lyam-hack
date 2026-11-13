@@ -1,6 +1,44 @@
 let improvementPosts = []
 let improvementRequest = 0
 
+function renderFeedRequest() {
+  const panel = $('feed-my-request')
+  panel.hidden = config.user?.role !== 'author'
+  if (panel.hidden) return
+  const item = cases.filter(entry => entry.author === config.user.id)
+    .reduce((latest, entry) => !latest || entry.created > latest.created ? entry : latest, null)
+  const status = item ? requestStatus(item) : ''
+  const markup = `
+    <header><span class="role-icon">${icon('inbox')}</span><h2 id="feed-my-request-title">Мои обращения</h2></header>
+    ${item ? `
+      <div class="feed-request-meta"><span>${item.number}</span><time datetime="${item.created}">${dateFormat.format(new Date(item.created))}</time></div>
+      <h3>${escapeHtml(typeLabel(item.type))}</h3>
+      <p class="feed-request-preview copy" data-original-text>${escapeHtml(item.description)}</p>
+      <span class="tag" data-tone="${item.moderated ? 'amber' : statusTones[status] || 'neutral'}">${escapeHtml(status)}</span>
+      ${item.canRateResolution ? '<button type="button" data-feed-rate="' + item.id + '">' + icon('spark') + ' Оценить решение</button>' : ''}
+      <a href="#main" class="feed-request-link" data-feed-chat="${item.id}"><span>Открыть чат</span>${icon('arrow')}</a>`
+    : '<p class="muted">У вас пока нет обращений.</p>'}`
+  if (panel.dataset.rendered !== markup) {
+    panel.dataset.rendered = markup
+    panel.innerHTML = markup
+  }
+}
+
+document.getElementById('feed-my-request').addEventListener('click', event => {
+  const rate = event.target.closest('[data-feed-rate]')
+  if (rate) showRating(Number(rate.dataset.feedRate), 'resolutionRating')
+  const chat = event.target.closest('[data-feed-chat]')
+  if (!chat) return
+  event.preventDefault()
+  resetFilters()
+  openId = Number(chat.dataset.feedChat)
+  location.hash = 'main'
+  showAnalyticsPage()
+  draw()
+  showPane('chat', true)
+  $('chat-heading')?.focus({ preventScroll: true })
+})
+
 async function loadImprovements() {
   const request = ++improvementRequest
   const profile = config.user
@@ -21,7 +59,9 @@ async function loadImprovements() {
         <span>${icon('brand')} ${post.comments.length} ${icon('arrow')}</span></span>
       </button>`).join('') || '<p class="analytics-panel">Пока нет опубликованных изменений.</p>'
   } catch (error) {
-    if (request === improvementRequest && config.user === profile) feed.textContent = error.message
+    if (request === improvementRequest && config.user === profile) {
+      feed.textContent = error.message
+    }
   }
 }
 
@@ -48,7 +88,7 @@ function showImprovement(post) {
     </article>`, 'improvement-story')
 }
 
-document.getElementById('improvement-feed').addEventListener('click', event => {
+document.getElementById('improvements').addEventListener('click', event => {
   const button = event.target.closest('[data-improvement]')
   const post = improvementPosts.find(item => item.id === Number(button?.dataset.improvement))
   if (post) showImprovement(post)

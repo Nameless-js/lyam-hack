@@ -45,7 +45,10 @@ function showAnalyticsPage() {
   $('workspace-intro').hidden = open || repeats || improvements || !user
   $('workspace').hidden = open || repeats || improvements || !user
   $('stats-panel').hidden = open || repeats || improvements || user?.role !== 'admin'
-  if (improvements) void loadImprovements()
+  if (improvements) {
+    renderFeedRequest()
+    void loadImprovements()
+  }
   if (open) drawAnalytics()
   if (repeats) void loadRepeatedProblems()
   if (!open && !repeats && user && ['#analytics', '#repeats'].includes(location.hash)) {

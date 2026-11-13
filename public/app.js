@@ -151,6 +151,7 @@ function draw() {
   if (!config.user) return
   if (!$('analytics').hidden) drawAnalytics()
   if (!$('repeats').hidden) void loadRepeatedProblems()
+  if (!$('improvements').hidden) renderFeedRequest()
   const finished = cases.filter(item => config.statuses.slice(4).includes(item.status)).length
   const withResponse = cases.filter(item => item.firstResponse)
   const totalHours = withResponse.reduce((sum, item) =>
@@ -541,7 +542,7 @@ function ratingSummary(item, title, rating) {
     (rating.comment ? '<p class="copy">' + contentText(rating.comment, item.id) + '</p>' : '') + '</section>'
 }
 function maybePromptRating(item) {
-  if (!item?.canRateResolution || promptedRatings.has(item.id) || !$('rating-card').hidden ||
+  if ($('workspace').hidden || !item?.canRateResolution || promptedRatings.has(item.id) || !$('rating-card').hidden ||
       $('dialog').open || tour.open || (mobileWorkspace.matches && $('workspace').dataset.pane !== 'chat')) return
   promptedRatings.add(item.id)
   showRating(item.id, 'resolutionRating')
@@ -560,7 +561,8 @@ function showRating(caseId, kind = 'rating') {
 }
 $('dismiss-rating').onclick = () => {
   $('rating-card').hidden = true
-  $('new-case').focus({ preventScroll: true })
+  const target = $('improvements').hidden ? $('new-case') : $('feed-my-request').querySelector('[data-feed-rate]')
+  target?.focus({ preventScroll: true })
 }
 $('rating-form').addEventListener('submit', async event => {
   event.preventDefault()
@@ -827,6 +829,8 @@ const guides = {
     title: 'Инструкция',
     steps: [
       ['#profile-form', 'Выберите роль', 'Сотрудник отправляет обращения, координатор разбирает входящие, исполнитель работает с назначенными задачами.'],
+      ['#profile-form', 'Подтвердите вход', 'Выберите профиль и нажмите «Подтвердите вход», чтобы открыть его кабинет.'],
+      ['#about-service', 'Посмотрите ролик', 'В разделе «Подробнее о сервисе» можно посмотреть короткий обзор SupCenter.'],
       languageStep,
     ],
   },
@@ -842,6 +846,7 @@ const guides = {
       chatStep,
       detailsStep,
       ['.details-head', 'Оцените решение', 'После выполнения обращения ответьте на вопрос «Вам помогли?». Поставьте от 1 до 5 звёзд и при желании напишите, что ещё нужно решить.', 'details'],
+      ['#open-improvements', 'Откройте ленту', 'Посмотрите, что изменилось по обращениям сотрудников, поставьте оценку и оставьте комментарий.'],
       languageStep,
     ],
   },
@@ -855,7 +860,9 @@ const guides = {
       ['[data-chat-action="priority"]', 'Укажите приоритет', 'Выберите P1 для срочного обращения, P2 для обычного или P3 для низкого приоритета.', 'chat'],
       ['.chat-head', 'Сохраните ответ в базу знаний', 'Под своим сообщением нажмите «Сохранить как общий ответ». Утверждённый ответ можно использовать для похожих вопросов.', 'chat'],
       ['#moderation', 'Проверьте спам', 'В разделе «Спам и нарушения» можно прочитать исходный текст, ответить автору, вернуть сообщение или удалить чат.'],
-      ['#telegram', 'Подключите Telegram', 'Откройте бота по ссылке и нажмите «Старт». В Telegram будут приходить новые обращения с полным текстом.'],
+      ['#telegram', 'Подключите Telegram', 'Нажмите «Подключить уведомления», откройте бота и нажмите «Старт». Бот подтвердит подключение и будет присылать полный текст новых обращений.'],
+      ['#open-workers', 'Управляйте работниками', 'Добавляйте, редактируйте и удаляйте профили. Должность вводится вручную, а тип доступа определяет возможности в SupCenter. Перед удалением исполнителя переназначьте его открытые обращения.'],
+      ['#open-improvements', 'Откройте ленту', 'Опубликуйте обезличенный итог завершённых обращений. Сотрудники смогут оценить изменение и прокомментировать его.'],
       ['#open-analytics', 'Откройте аналитику', 'Здесь можно проверить просрочки, открыть обращения по типу или статусу, посмотреть оценки и скачать отчёт.'],
       ['#open-repeats', 'Найдите повторяющиеся проблемы', 'Откройте вкладку, чтобы увидеть похожие жалобы и решения, сохранённые по каждой из них.'],
       ['.details-head', 'Посмотрите оценку компании', 'Оценка и комментарий сотрудника появятся в карточке положительного отзыва.', 'details'],
@@ -869,20 +876,28 @@ const guides = {
       detailsStep,
       chatStep,
       ['[data-chat-action="status"]', 'Обновите статус работы', 'Запросите уточнение у автора или укажите итог, когда работа завершена.', 'chat'],
+      ['.details-head', 'Завершите общее дело', 'Если в карточке есть блок «Общее дело», завершите любое связанное обращение. Один итог появится в отдельных чатах всех авторов.', 'details'],
+      ['#open-improvements', 'Откройте ленту', 'Посмотрите, что изменилось по обращениям сотрудников, поставьте оценку и оставьте комментарий.'],
       languageStep,
     ],
   },
 }
 const analyticsGuide = [
   ['#analytics-stats', 'Оцените нагрузку', 'Сводка показывает общее число обращений, сколько из них открыты, завершены или просрочены.'],
-  ['#analytics-type-heading', 'Изучите диаграмму', 'Нажмите на сектор диаграммы или строку в легенде, чтобы открыть список обращений этого типа. Нажмите на обращение, чтобы прочитать текст.'],
+  ['#analytics-type-heading', 'Изучите диаграмму', 'Нажмите на сектор 3D-диаграммы или строку легенды. В открывшейся панели можно раскрыть обращение, проверить его статус и просрочку или перейти к переписке.'],
   ['#analytics-status-heading', 'Отфильтруйте по статусу', 'Нажмите на статус, чтобы увидеть соответствующие обращения. Заголовок «Обращения по статусам» откроет весь список.'],
   ['[data-rating-toggle="rating"]', 'Проверьте оценки', 'Нажмите на заголовок оценки компании или решения, чтобы увидеть все звёзды и комментарии. Раздел «1–2 звезды» показывает низкие оценки.'],
   ['#download-report', 'Скачайте отчёт', 'PDF содержит круговую диаграмму, общие показатели и разбивку по статусам на выбранном языке.'],
 ]
 const repeatGuide = [
   ['#repeat-groups', 'Найдите повторяющиеся проблемы', 'Откройте группу и раскройте обращение, чтобы прочитать жалобу и принятое решение.'],
-  ['#repeat-groups', 'Объедините повторы', 'Выберите похожие обращения и назначьте одного исполнителя. При завершении общего дела итог получат все авторы.'],
+  ['#repeat-groups', 'Объедините повторы', 'Нажмите «Объединить в одно дело», отметьте минимум два открытых обращения и задайте одного исполнителя, срок и поручение. Общий итог появится в чате каждого автора.'],
+]
+const feedGuide = [
+  ['#publish-improvement', 'Опубликовать изменение', 'Выберите завершённые обращения и напишите итог для всей компании. Уберите имена, контакты и другие личные детали.'],
+  ['.improvement-card', 'Откройте публикацию', 'Нажмите на карточку, чтобы прочитать описание изменения и комментарии.'],
+  ['.improvement-card', 'Поставьте оценку', 'Выберите от 1 до 5 звёзд и при желании оставьте комментарий. После сохранения карточка закроется, а лента обновится.'],
+  ['#feed-my-request', 'Проверьте своё обращение', 'В карточке виден статус последнего обращения. Откройте чат или оцените решение, если оно доступно.'],
 ]
 let tourSteps = []
 let tourIndex = 0
@@ -1025,9 +1040,9 @@ function showStep(direction = 1) {
 $('instructions').onclick = () => {
   tourOrigin = { pane: $('workspace').dataset.pane, scroll: window.scrollY }
   const guide = guides[config?.user?.role || 'guest']
-  $('tour-role').textContent = guide.title
+  $('tour-role').textContent = $('improvements').hidden ? guide.title : 'Лента'
   $('tour-page-note').hidden = Boolean(config?.user)
-  const steps = !$('repeats').hidden ? repeatGuide : $('analytics').hidden ? guide.steps : analyticsGuide
+  const steps = !$('improvements').hidden ? feedGuide : !$('repeats').hidden ? repeatGuide : !$('analytics').hidden ? analyticsGuide : guide.steps
   tourSteps = steps.filter(([selector, , , pane]) => {
     const target = document.querySelector(selector)
     return target && (pane ? !$('workspace').hidden : target.getClientRects().length)

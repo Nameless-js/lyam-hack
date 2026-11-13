@@ -50,8 +50,13 @@ async function pollTelegram(onOwnerStart) {
         offset = update.update_id + 1
         const message = update.message
         if (message?.chat?.type !== 'private') continue
-        const code = /^\/start ([\w-]+)$/.exec(message.text || '')?.[1]
-        if (!code) continue
+        const start = /^\/start(?:@([\w]+))?(?:\s+([\w-]+))?$/.exec((message.text || '').trim())
+        if (!start || (start[1] && start[1].toLowerCase() !== botName.toLowerCase())) continue
+        const code = start[2]
+        if (!code) {
+          telegram('Здравствуйте! Это бот SupCenter. После подключения сюда будут приходить уведомления о новых жалобах, предложениях и других обращениях сотрудников. Чтобы подключиться, откройте SupCenter, нажмите «Подключить уведомления» и перейдите по ссылке.', message.chat.id)
+          continue
+        }
         if (onOwnerStart(code, message.chat.id)) continue
         const link = pending.get(code)
         if (!link) {
@@ -60,7 +65,7 @@ async function pollTelegram(onOwnerStart) {
         }
         pending.delete(code)
         subscriptions.set(link.id, { chatId: message.chat.id, expires: Date.now() + lifetime })
-        telegram('Уведомления подключены. Сюда будут приходить новые обращения.', message.chat.id)
+        telegram('Здравствуйте! Уведомления SupCenter подключены. Сюда будут приходить новые жалобы, предложения и другие обращения сотрудников. В каждом уведомлении будет полный текст обращения.', message.chat.id)
       }
     } catch (error) {
       console.error('Опрос Telegram: ' + error.message)

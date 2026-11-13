@@ -1,4 +1,58 @@
 SupCenter — обращения сотрудников|SupCenter — Employee requests|SupCenter — Қызметкерлердің өтініштері
+Работники|Staff|Қызметкерлер
+Имя|Name|Аты
+Добавить работника|Add staff member|Қызметкер қосу
+Редактировать|Edit|Өңдеу
+Удалить|Delete|Жою
+Сохранить изменения|Save changes|Өзгерістерді сақтау
+Удалить работника? История обращений сохранится.|Delete this staff member? Request history will be kept.|Қызметкерді жою керек пе? Өтініштер тарихы сақталады.
+Укажите имя работника.|Enter the staff member's name.|Қызметкердің атын енгізіңіз.
+Выберите роль работника.|Choose a staff role.|Қызметкер рөлін таңдаңыз.
+Укажите подразделение.|Enter a department.|Бөлімшені енгізіңіз.
+Должность|Job title|Лауазымы
+Тип доступа|Access type|Қолжетімділік түрі
+Например, менеджер по закупкам|For example, procurement manager|Мысалы, сатып алу менеджері
+Укажите должность.|Enter a job title.|Лауазымды енгізіңіз.
+Имя, подразделение и должность могут содержать до 100 символов.|Name, department, and job title can contain up to 100 characters each.|Аты, бөлімшесі және лауазымы 100 таңбаға дейін болуы мүмкін.
+Работник не найден.|Staff member not found.|Қызметкер табылмады.
+Сначала переназначьте открытые обращения исполнителя.|Reassign the staff member's open requests first.|Алдымен орындаушының ашық өтініштерін басқа адамға тапсырыңыз.
+Лента|Feed|Жаңалықтар таспасы
+Демо-публикация|Demo post|Демо жарияланым
+Улучшения по обратной связи сотрудников|Improvements based on employee feedback|Қызметкерлердің кері байланысы бойынша жақсартулар
+Опубликовать изменение|Publish an improvement|Өзгерісті жариялау
+Пока без оценок|No ratings yet|Әзірге баға жоқ
+Пока нет опубликованных изменений.|No improvements published yet.|Әзірге жарияланған өзгеріс жоқ.
+Комментарии|Comments|Пікірлер
+Комментариев пока нет.|No comments yet.|Әзірге пікір жоқ.
+Ваша оценка|Your rating|Сіздің бағаңыз
+Сохранить оценку|Save rating|Бағаны сақтау
+Пока нет завершённых обращений с итогом.|There are no completed requests with an outcome yet.|Нәтижесі бар аяқталған өтініштер әзірге жоқ.
+Перескажите итог своими словами. Уберите имена, контакты и детали, по которым можно узнать автора.|Summarize the outcome in your own words. Remove names, contact information, and identifying details.|Нәтижені өз сөзіңізбен сипаттаңыз. Авторды анықтайтын есімдерді, байланыс деректерін және мәліметтерді алып тастаңыз.
+Заголовок|Title|Тақырып
+Описание изменения|Improvement description|Өзгеріс сипаттамасы
+Связанные обращения|Related requests|Байланысты өтініштер
+Опубликовать|Publish|Жариялау
+Укажите заголовок публикации.|Enter a publication title.|Жарияланым тақырыбын енгізіңіз.
+Опишите, что изменилось.|Describe what changed.|Не өзгергенін сипаттаңыз.
+Выберите завершённые обращения и укажите заголовок до 120 символов.|Select completed requests and enter a title of up to 120 characters.|Аяқталған өтініштерді таңдап, 120 таңбаға дейін тақырып енгізіңіз.
+Одно из обращений недоступно для публикации.|One of the requests is unavailable for publication.|Өтініштердің бірі жариялауға қолжетімсіз.
+Публикация не найдена.|Publication not found.|Жарияланым табылмады.
+Выберите оценку от 1 до 5. Комментарий может содержать до 1000 символов.|Choose a rating from 1 to 5. Comments can contain up to 1000 characters.|1-ден 5-ке дейін баға таңдаңыз. Пікір 1000 таңбаға дейін болуы мүмкін.
+Комментарий не прошёл проверку. Измените текст и попробуйте снова.|The comment did not pass moderation. Edit it and try again.|Пікір тексеруден өтпеді. Мәтінді өзгертіп, қайта көріңіз.
+Общее дело|Shared case|Ортақ іс
+Объедините повторы|Merge duplicate requests|Қайталанған өтініштерді біріктіріңіз
+Выберите похожие обращения и назначьте одного исполнителя. При завершении общего дела итог получат все авторы.|Select similar requests and assign one person. All authors receive the outcome when the shared case is closed.|Ұқсас өтініштерді таңдап, бір орындаушыны тағайындаңыз. Ортақ іс жабылғанда нәтижені барлық автор алады.
+Объединить в одно дело|Merge into one case|Бір іске біріктіру
+Объединить и поручить|Merge and assign|Біріктіріп тапсыру
+Название общего дела|Shared case title|Ортақ істің атауы
+Общий итог появится в чате каждого автора. Переписки останутся отдельными.|Each author will see the shared outcome in their own chat. Conversations stay separate.|Ортақ нәтиже әр автордың чатында көрінеді. Хат алмасулар бөлек қалады.
+При завершении общего дела итог получат все авторы.|All authors receive the outcome when the shared case is closed.|Ортақ іс жабылғанда нәтижені барлық автор алады.
+Общее дело создано.|Shared case created.|Ортақ іс құрылды.
+Выберите минимум два обращения.|Select at least two requests.|Кемінде екі өтінішті таңдаңыз.
+Укажите название общего дела.|Enter a shared case title.|Ортақ істің атауын енгізіңіз.
+Одно из обращений уже недоступно для объединения.|One of the requests is no longer eligible to merge.|Өтініштердің бірі енді біріктіруге қолжетімсіз.
+Обращение отправляется…|Submitting request…|Өтініш жіберілуде…
+Сохранение…|Saving…|Сақталуда…
 Подробнее о сервисе|About the service|Сервис туралы толығырақ
 Рекомендуем жюри|Recommended for judges|Қазылар алқасына ұсынамыз
 Не удалось вернуться на главную.|Could not return to the home page.|Басты бетке оралу мүмкін болмады.

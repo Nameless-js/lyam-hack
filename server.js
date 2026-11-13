@@ -27,7 +27,16 @@ const profiles = [
   ...owners.map((name, i) => ({ id: 'owner-' + i, name, role: 'owner' })),
 ]
 const profileById = new Map(profiles.map(profile => [profile.id, profile]))
-const db = new DatabaseSync(process.env.DEMO_DB || path.join(__dirname, 'feedback.sqlite'))
+const databasePath = process.env.DEMO_DB || path.join(__dirname, 'feedback.sqlite')
+const jurySnapshot = path.join(__dirname, 'demo', 'jury.sqlite')
+if (!process.env.DEMO_DB && fs.existsSync(jurySnapshot)) {
+  try {
+    fs.copyFileSync(jurySnapshot, databasePath, fs.constants.COPYFILE_EXCL)
+  } catch (error) {
+    if (error.code !== 'EEXIST') throw error
+  }
+}
+const db = new DatabaseSync(databasePath)
 db.exec(`
   CREATE TABLE IF NOT EXISTS cases (id INTEGER PRIMARY KEY, data TEXT NOT NULL);
   CREATE TABLE IF NOT EXISTS audit (id INTEGER PRIMARY KEY, time TEXT NOT NULL, actor TEXT NOT NULL, action TEXT NOT NULL, case_id INTEGER, incoming INTEGER NOT NULL);
@@ -35,12 +44,36 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS telegram_owner (id INTEGER PRIMARY KEY CHECK (id = 1), chat_id TEXT NOT NULL);
   CREATE TABLE IF NOT EXISTS attachments (id TEXT PRIMARY KEY, case_id INTEGER NOT NULL, type TEXT NOT NULL, data BLOB NOT NULL);
   CREATE TABLE IF NOT EXISTS repeat_cache (language TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, groups TEXT, checked_at INTEGER NOT NULL);
+  CREATE TABLE IF NOT EXISTS improvements (id INTEGER PRIMARY KEY, title TEXT NOT NULL, summary TEXT NOT NULL, created TEXT NOT NULL, sources TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS improvement_feedback (
+    improvement_id INTEGER NOT NULL, profile TEXT NOT NULL, score INTEGER NOT NULL, comment TEXT NOT NULL,
+    PRIMARY KEY (improvement_id, profile)
+  );
+  CREATE TABLE IF NOT EXISTS workers (id TEXT PRIMARY KEY, data TEXT NOT NULL);
 `)
+const saveWorker = db.prepare('INSERT OR REPLACE INTO workers (id, data) VALUES (?, ?)')
+for (const row of db.prepare('SELECT data FROM workers').all()) {
+  const profile = JSON.parse(row.data)
+  profileById.set(profile.id, profile)
+}
+const activeProfiles = () => [...profileById.values()].filter(profile => !profile.inactive)
+function publicProfile(profile) {
+  if (!profile) return profile
+  const { formerNames, ...visible } = profile
+  return visible
+}
 const findRepeatGroups = repeatGroups(db)
 const insert = db.prepare('INSERT INTO cases (id, data) VALUES (?, ?)')
 const update = db.prepare('UPDATE cases SET data = ? WHERE id = ?')
 const select = db.prepare('SELECT data FROM cases WHERE id = ?')
 const list = db.prepare('SELECT data FROM cases ORDER BY id DESC')
+const listImprovements = db.prepare('SELECT id, title, summary, created FROM improvements ORDER BY id DESC')
+const listImprovementFeedback = db.prepare('SELECT profile, score, comment FROM improvement_feedback WHERE improvement_id = ? ORDER BY rowid')
+const insertImprovement = db.prepare('INSERT INTO improvements (title, summary, created, sources) VALUES (?, ?, ?, ?)')
+const findImprovement = db.prepare('SELECT id FROM improvements WHERE id = ?')
+const saveImprovementFeedback = db.prepare(`INSERT INTO improvement_feedback VALUES (?, ?, ?, ?)
+  ON CONFLICT(improvement_id, profile) DO UPDATE SET score=excluded.score, comment=excluded.comment`)
+const listLinked = db.prepare("SELECT data FROM cases WHERE json_extract(data, '$.sharedCaseId') = ?")
 const maxId = db.prepare('SELECT COALESCE(MAX(id), 0) + 1 AS id FROM cases')
 const insertAttachment = db.prepare('INSERT INTO attachments (id, case_id, type, data) VALUES (?, ?, ?, ?)')
 const selectAttachment = db.prepare('SELECT case_id, type, data FROM attachments WHERE id = ?')
@@ -58,8 +91,35 @@ function saveCaseWithAttachments(item, files, isNew = false) {
     throw error
   }
 }
+function saveSharedCases(items) {
+  db.exec('BEGIN')
+  try {
+    for (const item of items) update.run(JSON.stringify(item), item.id)
+    db.exec('COMMIT')
+  } catch (error) {
+    db.exec('ROLLBACK')
+    throw error
+  }
+}
 const day = 86400000
 const stamp = (time = Date.now()) => new Date(time).toISOString()
+const insertDemoImprovement = db.prepare('INSERT OR IGNORE INTO improvements (id, title, summary, created, sources) VALUES (?, ?, ?, ?, ?)')
+db.exec('BEGIN')
+try {
+  const demos = [
+    [-2, 'Добавили шаблон заявки на закупку', 'В шаблоне собрали обязательные поля и пример заполнения. Заявки теперь проще проверять перед согласованием.', 5, 'С примером понятно, как заполнить заявку с первого раза.'],
+    [-1, 'Упростили поиск проектных документов', 'Актуальные файлы собрали в общей папке и договорились об одинаковых названиях для версий.', 4, 'Нужную версию теперь проще найти.'],
+  ]
+  for (const [id, title, summary, score, comment] of demos) {
+    if (insertDemoImprovement.run(id, title, summary, stamp(Date.now() + id * day), '[]').changes) {
+      saveImprovementFeedback.run(id, 'demo-feedback', score, comment)
+    }
+  }
+  db.exec('COMMIT')
+} catch (error) {
+  db.exec('ROLLBACK')
+  throw error
+}
 const record = (item, actor, label, text, time = stamp()) => {
   item.history.push({ time, actor, label, text })
 }
@@ -148,7 +208,8 @@ const canRead = (user, item) => !item.deleted && (user.role === 'admin' || item.
 const sessions = new Map()
 const userFrom = req => {
   const token = (req.headers.cookie || '').match(/(?:^|;\s*)sid=([\w-]+)/)?.[1]
-  return profileById.get(sessions.get(token))
+  const profile = profileById.get(sessions.get(token))
+  return profile?.inactive ? undefined : profile
 }
 function send(res, status, data, headers = {}) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...headers })
@@ -197,17 +258,20 @@ function canRateResolution(item) {
 function view(item, user) {
   const { heldMessages, moderationReason, ...visible } = item
   const authorName = getProfileName(item.author)
+  const authorNames = new Set([authorName, ...(profileById.get(item.author)?.formerNames || [])])
   const hideAuthor = item.anonymous && item.author !== user.id
   const hideContent = moderationReason && user.role === 'admin'
   return {
     ...visible,
+    sharedCaseId: user.role === 'author' ? Boolean(item.sharedCaseId) : item.sharedCaseId,
+    sharedCaseTitle: user.role === 'author' ? undefined : item.sharedCaseTitle,
     description: hideContent ? '' : item.description,
     attachments: hideContent ? [] : item.attachments,
     canRateResolution: item.author === user.id && canRateResolution(item) && !item.resolutionRating,
     moderationNotices: user.role === 'admin' ? (heldMessages || []).map(({ time }) => ({ time })) : [],
     author: hideAuthor ? null : item.author,
     authorName: hideAuthor ? anonymousName : authorName,
-    history: hideAuthor ? item.history.map(event => event.actor === authorName ? { ...event, actor: anonymousName } : event) : item.history,
+    history: hideAuthor ? item.history.map(event => authorNames.has(event.actor) ? { ...event, actor: anonymousName } : event) : item.history,
     moderated: Boolean(moderationReason), number: caseNumber(item.id),
     ownerName: getProfileName(item.owner), department: item.anonymous ? null : profileById.get(item.author).department,
     overdue: !terminal.has(item.status) && Date.parse(item.due) < Date.now(),
@@ -227,7 +291,8 @@ function edit(user, item, data) {
   switch (data.action) {
     case 'assign': {
       if (user.role !== 'admin') fail(403, 'Назначить исполнителя может координатор.')
-      if (profileById.get(data.owner)?.role !== 'owner') fail(400, 'Выберите исполнителя.')
+      const owner = profileById.get(data.owner)
+      if (owner?.role !== 'owner' || owner.inactive) fail(400, 'Выберите исполнителя.')
       const task = required(data.text, 'Опишите поручение (до 4000 символов).')
       if (!/^\d{4}-\d{2}-\d{2}$/.test(data.due) || !Number.isFinite(Date.parse(data.due))) {
         fail(400, 'Укажите срок.')
@@ -281,9 +346,11 @@ const assets = {
   '/i18n.js': ['i18n.js', 'text/javascript'],
   '/analytics.js': ['analytics.js', 'text/javascript'],
   '/repeats.js': ['repeats.js', 'text/javascript'],
+  '/improvements.js': ['improvements.js', 'text/javascript'],
   '/media-input.js': ['media-input.js', 'text/javascript'],
   '/translations.txt': ['translations.txt', 'text/plain'],
   '/hero.webp': ['hero.webp', 'image/webp'],
+  '/supcenter-logo.png': ['supcenter-logo.png', 'image/png'],
 }
 const server = http.createServer(async (req, res) => {
   try {
@@ -317,7 +384,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === 'GET' && assets[route]) {
       const [name, mime] = assets[route]
-      res.writeHead(200, { 'Content-Type': mime + '; charset=utf-8', 'Cache-Control': 'no-cache' })
+      res.writeHead(200, { 'Content-Type': mime.startsWith('image/') ? mime : mime + '; charset=utf-8', 'Cache-Control': 'no-cache' })
       if (route === '/') audit(userFrom(req), 'Открыл сайт')
       return res.end(fs.readFileSync(path.join(__dirname, 'public', name)))
     }
@@ -329,26 +396,137 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && route === '/api/session') {
       const data = await body(req)
       const profile = profileById.get(data.profile)
-      if (!profile) fail(400, 'Выберите тестовую роль.')
+      if (!profile || profile.inactive) fail(400, 'Выберите тестовую роль.')
       const oldToken = (req.headers.cookie || '').match(/(?:^|;\s*)sid=([\w-]+)/)?.[1]
       sessions.delete(oldToken)
       const token = randomUUID()
       sessions.set(token, profile.id)
       audit(profile, 'Вошёл в демо-профиль')
-      return send(res, 200, profile, { 'Set-Cookie': 'sid=' + token + '; HttpOnly; SameSite=Strict; Path=/' })
+      return send(res, 200, publicProfile(profile), { 'Set-Cookie': 'sid=' + token + '; HttpOnly; SameSite=Strict; Path=/' })
     }
     const user = userFrom(req)
     if (req.method === 'GET' && route === '/api/config') {
-      return send(res, 200, { user, profiles, types, categories, statuses, priorities, departments, transitions })
+      const available = activeProfiles().map(publicProfile)
+      const allDepartments = [...new Set([...departments, ...[...profileById.values()].map(profile => profile.department).filter(Boolean)])]
+      return send(res, 200, { user: publicProfile(user), profiles: available, types, categories, statuses, priorities, departments: allDepartments, transitions })
     }
     if (!user) fail(401, 'Выберите демо-профиль.')
+    if (route === '/api/workers' && ['GET', 'POST'].includes(req.method)) {
+      if (user.role !== 'admin') fail(403, 'Раздел доступен координатору.')
+      if (req.method === 'GET') return send(res, 200, activeProfiles().filter(profile => profile.role !== 'admin').map(publicProfile))
+      const data = await body(req)
+      if (!['add', 'edit', 'delete'].includes(data.action)) fail(400, 'Неизвестное действие.')
+      const existing = data.action === 'add' ? null : profileById.get(data.id)
+      if (data.action !== 'add' && (!existing || existing.inactive || existing.role === 'admin')) fail(404, 'Работник не найден.')
+      let profile
+      if (data.action !== 'delete') {
+        const name = required(data.name, 'Укажите имя работника.')
+        const role = pick(data.role, ['author', 'owner'], 'Выберите роль работника.')
+        const department = required(data.department, 'Укажите подразделение.')
+        const position = required(data.position, 'Укажите должность.')
+        if ([name, department, position].some(value => value.length > 100)) fail(400, 'Имя, подразделение и должность могут содержать до 100 символов.')
+        profile = { id: existing?.id || randomUUID(), name, role, department, position }
+        if (existing) profile.formerNames = [...new Set([...(existing.formerNames || []), existing.name])].filter(value => value !== name)
+      } else {
+        profile = { ...existing, inactive: true }
+      }
+      if (existing?.role === 'owner' && (profile.inactive || profile.role !== 'owner') && list.all().some(row => {
+          const item = JSON.parse(row.data)
+          return item.owner === existing.id && !item.deleted && !terminal.has(item.status)
+      })) fail(409, 'Сначала переназначьте открытые обращения исполнителя.')
+      saveWorker.run(profile.id, JSON.stringify(profile))
+      profileById.set(profile.id, profile)
+      if (profile.inactive || (existing && profile.role !== existing.role)) {
+        for (const [token, id] of sessions) if (id === profile.id) sessions.delete(token)
+      }
+      return send(res, 200, publicProfile(profile))
+    }
+    if (route === '/api/improvements' && req.method === 'GET') {
+      return send(res, 200, listImprovements.all().map(post => {
+        const feedback = listImprovementFeedback.all(post.id)
+        const mine = feedback.find(entry => entry.profile === user.id)
+        return {
+          ...post, count: feedback.length,
+          average: feedback.length ? feedback.reduce((sum, entry) => sum + entry.score, 0) / feedback.length : null,
+          comments: feedback.filter(entry => entry.comment).map(({ score, comment }) => ({ score, comment })),
+          mine: mine ? { score: mine.score, comment: mine.comment } : null,
+        }
+      }))
+    }
+    if (route === '/api/improvements' && req.method === 'POST') {
+      if (user.role !== 'admin') fail(403, 'Раздел доступен координатору.')
+      const { title, summary, ids } = await body(req)
+      const heading = required(title, 'Укажите заголовок публикации.')
+      const description = required(summary, 'Опишите, что изменилось.')
+      if (heading.length > 120 || !Array.isArray(ids) || !ids.length || !ids.every(Number.isSafeInteger)) {
+        fail(400, 'Выберите завершённые обращения и укажите заголовок до 120 символов.')
+      }
+      const sources = [...new Set(ids)]
+      for (const id of sources) {
+        const row = select.get(id)
+        const item = row && JSON.parse(row.data)
+        if (!item || item.deleted || item.moderationReason || !terminal.has(item.status) || !item.result) {
+          fail(409, 'Одно из обращений недоступно для публикации.')
+        }
+      }
+      const { lastInsertRowid } = insertImprovement.run(heading, description, stamp(), JSON.stringify(sources))
+      return send(res, 201, { id: Number(lastInsertRowid) })
+    }
+    const feedbackRoute = route.match(/^\/api\/improvements\/(-?\d+)\/feedback$/)
+    if (feedbackRoute && req.method === 'POST') {
+      const id = Number(feedbackRoute[1])
+      if (!findImprovement.get(id)) fail(404, 'Публикация не найдена.')
+      const { score, comment = '' } = await body(req)
+      if (!Number.isInteger(score) || score < 1 || score > 5 || typeof comment !== 'string' || comment.length > 1000) {
+        fail(400, 'Выберите оценку от 1 до 5. Комментарий может содержать до 1000 символов.')
+      }
+      const message = comment.trim()
+      const previous = listImprovementFeedback.all(id).find(entry => entry.profile === user.id)
+      if (message && message !== previous?.comment && await review('improvements:' + user.id, message)) {
+        fail(400, 'Комментарий не прошёл проверку. Измените текст и попробуйте снова.')
+      }
+      saveImprovementFeedback.run(id, user.id, score, message)
+      return send(res, 200, { ok: true })
+    }
     if (route === '/api/repeats' && req.method === 'GET') {
       if (user.role !== 'admin') fail(403, 'Раздел доступен координатору.')
       const language = url.searchParams.get('language') || 'ru'
       if (!['ru', 'kk', 'en'].includes(language)) fail(400, 'Некорректный запрос.')
       const complaints = list.all().map(row => JSON.parse(row.data))
         .filter(item => !item.deleted && !item.moderationReason && item.type === 'Проблема')
-      return send(res, 200, findRepeatGroups(complaints, language))
+      const confirmed = new Map()
+      for (const item of complaints) {
+        if (!item.sharedCaseId) continue
+        if (!confirmed.has(item.sharedCaseId)) confirmed.set(item.sharedCaseId, {
+          title: item.sharedCaseTitle, ids: [], confirmed: true,
+        })
+        confirmed.get(item.sharedCaseId).ids.push(item.id)
+      }
+      const suggested = findRepeatGroups(complaints.filter(item => !item.sharedCaseId), language)
+      return send(res, 200, { ...suggested, groups: [...confirmed.values(), ...suggested.groups] })
+    }
+    if (route === '/api/repeats' && req.method === 'POST') {
+      if (user.role !== 'admin') fail(403, 'Раздел доступен координатору.')
+      const { ids, title, owner, due, text } = await body(req)
+      if (!Array.isArray(ids) || ids.length < 2 || !ids.every(Number.isSafeInteger) ||
+          new Set(ids).size !== ids.length) fail(400, 'Выберите минимум два обращения.')
+      const sharedCaseTitle = required(title, 'Укажите название общего дела.').slice(0, 180)
+      const items = ids.map(id => {
+        const row = select.get(id)
+        const item = row && JSON.parse(row.data)
+        if (!item || item.deleted || item.moderationReason || item.type !== 'Проблема' ||
+            terminal.has(item.status) || item.sharedCaseId) fail(409, 'Одно из обращений уже недоступно для объединения.')
+        return item
+      })
+      const sharedCaseId = Math.min(...ids)
+      for (const item of items) {
+        edit(user, item, { action: 'assign', owner, due, text })
+        item.sharedCaseId = sharedCaseId
+        item.sharedCaseTitle = sharedCaseTitle
+      }
+      saveSharedCases(items)
+      audit(user, 'Объединил обращения в общее дело', items[0].id)
+      return send(res, 201, { ok: true })
     }
     if (route === '/api/transcribe' && req.method === 'POST') {
       const type = req.headers['content-type']?.split(';')[0]
@@ -555,9 +733,10 @@ const server = http.createServer(async (req, res) => {
         return send(res, 200, { ok: true })
       }
       const all = list.all().map(entry => JSON.parse(entry.data))
-      const candidates = profiles.filter(profile => profile.role === 'owner').map(profile => ({
+      const candidates = activeProfiles().filter(profile => profile.role === 'owner').map(profile => ({
         id: profile.id, role: profile.name,
-        active: all.filter(entry => entry.owner === profile.id && !terminal.has(entry.status)).length,
+        active: new Set(all.filter(entry => !entry.deleted && entry.owner === profile.id && !terminal.has(entry.status))
+          .map(entry => entry.sharedCaseId || entry.id)).size,
         topics: [...new Set(seed.filter(entry => entry.owner === profile.name).map(entry => entry.category))],
       }))
       try {
@@ -598,7 +777,19 @@ const server = http.createServer(async (req, res) => {
         }
       }
       edit(user, item, data)
-      saveCaseWithAttachments(item, files)
+      if (item.sharedCaseId && (data.action === 'assign' || (data.action === 'status' && terminal.has(item.status)))) {
+        const linked = listLinked.all(item.sharedCaseId).map(entry => JSON.parse(entry.data))
+          .filter(entry => entry.id !== item.id && !entry.deleted && !terminal.has(entry.status))
+        for (const entry of linked) {
+          if (data.action === 'assign') edit(user, entry, data)
+          else {
+            entry.status = item.status
+            entry.result = item.result
+            record(entry, user.name, item.status, item.result)
+          }
+        }
+        saveSharedCases([item, ...linked])
+      } else saveCaseWithAttachments(item, files)
       audit(user, { assign: 'Назначил исполнителя', status: 'Статус · ' + item.status,
         priority: 'Приоритет изменён · ' + item.priority, comment: 'Отправил сообщение' }[data.action], item.id)
       return send(res, 200, view(item, user))

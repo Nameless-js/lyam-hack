@@ -136,10 +136,10 @@ function showRole() {
   $('new-case').hidden = user?.role !== 'author'
   $('workspace').hidden = !user
   $('stats-panel').hidden = user?.role !== 'admin'
-  $('notifications').hidden = user?.role !== 'admin'
   $('moderation').hidden = user?.role !== 'admin'
   $('telegram').hidden = user?.role !== 'admin'
   $('open-analytics').hidden = user?.role !== 'admin'
+  $('open-workers').hidden = user?.role !== 'admin'
   $('open-repeats').hidden = user?.role !== 'admin'
   $('department-filter').hidden = user?.role !== 'admin'
   showAnalyticsPage()
@@ -235,6 +235,7 @@ function showAction(item, action, suggestion = null) {
     </form>`
   const status = `
     <form class="action-form" data-action="status">
+      ${item.sharedCaseId ? '<p class="muted">При завершении общего дела итог получат все авторы.</p>' : ''}
       <label>Новый статус<select name="status" required>${options(next.filter(value => value !== 'В работе' || item.owner), '', 'Выберите статус')}</select></label>
       <label>Вопрос автору или итог рассмотрения<textarea name="text" maxlength="4000" rows="2"></textarea></label>
       <button>Обновить статус</button>
@@ -317,6 +318,7 @@ function renderChat() {
       <div><dt>Срок</dt><dd class="${item.overdue ? 'late' : ''}">${dateFormat.format(new Date(item.due))}${item.overdue ? ' · Просрочено' : ''}</dd></div>
     </dl>
     ${item.task ? '<section class="box"><h3>Поручение</h3><p class="copy">' + contentText(item.task, item.id) + '</p></section>' : ''}
+    ${staff && item.sharedCaseId ? '<section class="box"><h3>Общее дело</h3><p class="copy">' + escapeHtml(item.sharedCaseTitle) + '</p></section>' : ''}
     ${item.result ? '<section class="box"><h3>Итог</h3><p class="copy">' + contentText(item.result, item.id) + '</p></section>' : ''}
     ${ratingSummary(item, 'Оценка компании', item.rating)}
     ${ratingSummary(item, 'Оценка решения', item.resolutionRating)}
@@ -402,6 +404,42 @@ function newCase() {
       </div>
     </form>`)
 }
+async function showWorkers(editId) {
+  const workers = await api('workers')
+  const editing = workers.find(worker => worker.id === editId)
+  modal('Работники', `
+    <form class="action-form worker-add" data-action="workers">
+      <input type="hidden" name="operation" value="${editing ? 'edit' : 'add'}">
+      ${editing ? '<input type="hidden" name="id" value="' + escapeHtml(editing.id) + '">' : ''}
+      <div class="grid">
+        <label>Имя<input name="name" maxlength="100" value="${escapeHtml(editing?.name)}" required></label>
+        <label>Подразделение<input name="department" maxlength="100" value="${escapeHtml(editing?.department)}" required></label>
+      </div>
+      <label>Должность<input name="position" maxlength="100" value="${escapeHtml(editing?.position)}" placeholder="Например, менеджер по закупкам" required></label>
+      <label>Тип доступа<select name="role"><option value="author">Сотрудник</option><option value="owner" ${editing?.role === 'owner' ? 'selected' : ''}>Исполнитель</option></select></label>
+      <button type="submit">${editing ? 'Сохранить изменения' : icon('plus') + ' Добавить работника'}</button>
+      ${editing ? '<button type="button" class="secondary" data-worker-edit="">Отмена</button>' : ''}
+    </form>
+    <div class="worker-list">
+      ${workers.map(worker => `<form class="worker-row" data-action="workers">
+        <input type="hidden" name="id" value="${escapeHtml(worker.id)}">
+        <input type="hidden" name="operation" value="delete">
+        <div><strong data-original-text>${escapeHtml(worker.name)}</strong>
+          <small><span>${roleNames[worker.role]}</span>${worker.position ? ' · <span data-original-text>' + escapeHtml(worker.position) + '</span>' : ''}${worker.department ? ' · <span>' + escapeHtml(worker.department) + '</span>' : ''}</small>
+        </div>
+        <div class="worker-actions"><button type="button" class="secondary" data-worker-edit="${escapeHtml(worker.id)}">Редактировать</button>
+        <button type="submit" class="secondary worker-delete">Удалить</button></div>
+      </form>`).join('')}
+    </div>`, 'workers')
+}
+$('open-workers').onclick = () => showWorkers().catch(error => notice(error.message, true))
+$('dialog').addEventListener('click', event => {
+  const button = event.target.closest('[data-worker-edit]')
+  if (button) void showWorkers(button.dataset.workerEdit).then(() => {
+    if (button.dataset.workerEdit) document.querySelector('.worker-add [name="name"]')?.focus()
+  }).catch(error => notice(error.message, true))
+})
+
 $('dialog').addEventListener('submit', async event => {
   event.preventDefault()
   const form = event.target
@@ -409,12 +447,55 @@ $('dialog').addEventListener('submit', async event => {
   const action = form.dataset.action
   const caseId = openId
   const data = Object.fromEntries(new FormData(form))
+  if (action === 'workers' && data.operation === 'delete' &&
+      !window.confirm(translate('Удалить работника? История обращений сохранится.'))) return
   if (action === 'create' && mediaWorking(form)) {
     mediaStatus(form, 'Дождитесь окончания расшифровки.')
     return
   }
   button.disabled = true
+  button.setAttribute('aria-busy', 'true')
+  const originalLabel = button.innerHTML
+  button.textContent = action === 'create' ? 'Обращение отправляется…' : 'Сохранение…'
   try {
+    if (action === 'workers') {
+      const { operation, ...worker } = data
+      await api('workers', { ...worker, action: operation })
+      const { profiles, departments } = await api('config')
+      config.profiles = profiles
+      config.departments = departments
+      const filter = $('department-filter')
+      filter.innerHTML = options(departments, filter.value, 'Все подразделения')
+      if (form.isConnected && $('dialog').open) await showWorkers()
+      return
+    }
+    if (action === 'improvement-feedback') {
+      const id = Number(form.dataset.improvementId)
+      await api('improvements/' + id + '/feedback', { score: Number(data.score), comment: data.comment })
+      if (form.isConnected && $('dialog').open) $('dialog').close()
+      notice('Спасибо! Оценка сохранена.')
+      await loadImprovements()
+      if (!$('improvements').hidden && !$('dialog').open && document.activeElement === document.body) {
+        $('improvement-feed').querySelector('[data-improvement="' + id + '"]')?.focus({ preventScroll: true })
+      }
+      return
+    }
+    if (action === 'publish-improvement') {
+      const ids = new FormData(form).getAll('ids').map(Number)
+      await api('improvements', { ...data, ids })
+      $('dialog').close()
+      await loadImprovements()
+      return
+    }
+    if (action === 'merge-repeats') {
+      const ids = new FormData(form).getAll('ids').map(Number)
+      if (ids.length < 2) throw new Error('Выберите минимум два обращения.')
+      await api('repeats', { ...data, ids })
+      $('dialog').close()
+      await refresh()
+      notice('Общее дело создано.')
+      return
+    }
     if (action === 'moderation') {
       await api('moderation/' + data.caseId, { id: data.id, action: data.operation, text: data.text })
       await refresh()
@@ -432,7 +513,11 @@ $('dialog').addEventListener('submit', async event => {
       await api('cases/' + caseId, { ...data, action })
     openId = item.id
     if (action === 'create') resetFilters()
-    await refresh()
+    if (item.sharedCaseId && ['assign', 'status'].includes(action)) await refresh()
+    else {
+      cases = action === 'create' ? [item, ...cases] : cases.map(entry => entry.id === item.id ? item : entry)
+      draw()
+    }
     if ($('dialog').open) $('dialog').close()
     if (action === 'create') showPane('chat', true)
     if (action === 'create' && item.type === 'Положительный отзыв') showRating(item.id)
@@ -445,6 +530,8 @@ $('dialog').addEventListener('submit', async event => {
       errorBox.hidden = false
     } else notice(error.message, true)
   } finally {
+    button.innerHTML = originalLabel
+    button.removeAttribute('aria-busy')
     button.disabled = false
   }
 })
@@ -614,28 +701,6 @@ $('refresh').onclick = async () => {
     $('refresh').disabled = false
   }
 }
-const seenKey = 'kontur-inbox-seen'
-async function checkInbox(show = false) {
-  if (config?.user?.role !== 'admin') return
-  const { events, unread } = await api('audit?after=' + (localStorage.getItem(seenKey) || 0))
-  if (config?.user?.role !== 'admin') return
-  const changed = $('unread').textContent !== String(unread) || $('unread').hidden
-  $('unread').textContent = unread
-  $('unread').hidden = !unread
-  if (unread && changed && !show && !tour.open) {
-    animateUi($('unread'), { scale: [.7, 1.14, 1], opacity: [.4, 1, 1] }, { duration: .35 })
-  }
-  if (!show) return
-  if (events.length) localStorage.setItem(seenKey, String(events[0].id))
-  $('unread').hidden = true
-  modal('Уведомления и журнал', '<div class="audit-list">' + (events.map(entry => `
-    <article class="audit-entry ${entry.incoming ? 'audit-incoming' : ''}">
-      <strong>${escapeHtml(entry.action)}</strong>
-      <small>${escapeHtml(entry.actor)} · ${timeFormat.format(new Date(entry.time))}</small>
-      ${entry.case_id ? '<button type="button" class="secondary" data-audit-case="' + entry.case_id + '">Открыть A-' + String(entry.case_id).padStart(3, '0') + '</button>' : ''}
-    </article>`).join('') || '<p class="muted">Пока нет событий.</p>') + '</div>')
-}
-$('notifications').onclick = () => checkInbox(true).catch(error => notice(error.message, true))
 async function showModeration() {
   const entries = await api('moderation')
   modal('Спам и нарушения', '<div class="moderation-list">' + (entries.map((entry, index) => `
@@ -728,19 +793,8 @@ $('telegram').onclick = async () => {
     notice(error.message, true)
   }
 }
-$('dialog').addEventListener('click', async event => {
-  const id = Number(event.target.closest('[data-audit-case]')?.dataset.auditCase)
-  if (!id) return
-  $('dialog').close()
-  resetFilters()
-  openId = id
-  void api('cases/' + id + '/open', {}).catch(() => {})
-  await refresh().catch(error => notice(error.message, true))
-  if (openId) showPane('chat', true)
-})
 setInterval(async () => {
   if (document.hidden || !config?.user) return
-  void checkInbox().catch(() => {})
   void checkTelegram().catch(() => {})
   if ($('dialog').open || analyticsDrilldown.open || profilePicker.open || tour.open || pendingMessages.size || activeRecording ||
       ($('composer') && mediaWorking($('composer')))) return
@@ -748,11 +802,14 @@ setInterval(async () => {
   if (focused() && config.user.role !== 'author') return
   try {
     const profile = config.user.id
+    const previousCases = cases
     const items = await api('cases')
-    if (config.user?.id !== profile || $('dialog').open || analyticsDrilldown.open || profilePicker.open || tour.open || pendingMessages.size) return
+    if (config.user?.id !== profile || cases !== previousCases || $('dialog').open || analyticsDrilldown.open || profilePicker.open || tour.open || pendingMessages.size) return
     const previous = cases.find(item => item.id === openId)
     const current = items.find(item => item.id === openId)
-    if (focused() && !(config.user.role === 'author' && current?.canRateResolution && !previous?.canRateResolution)) return
+    if (focused() && !(config.user.role === 'author' && current &&
+        (current.canRateResolution && !previous?.canRateResolution ||
+          current.sharedCaseId && current.result !== previous?.result))) return
     if (JSON.stringify(items) !== JSON.stringify(cases)) {
       cases = items
       draw()
@@ -797,7 +854,6 @@ const guides = {
       ['[data-chat-action="assign"]', 'Назначьте исполнителя', 'Нажмите «Поручить», выберите исполнителя и укажите срок. Кнопка «Изменить статус» позволяет запросить уточнение или зафиксировать итог.', 'chat'],
       ['[data-chat-action="priority"]', 'Укажите приоритет', 'Выберите P1 для срочного обращения, P2 для обычного или P3 для низкого приоритета.', 'chat'],
       ['.chat-head', 'Сохраните ответ в базу знаний', 'Под своим сообщением нажмите «Сохранить как общий ответ». Утверждённый ответ можно использовать для похожих вопросов.', 'chat'],
-      ['#notifications', 'Проверьте входящие', 'Счётчик показывает новые обращения. Внутри уведомлений также есть журнал действий по демо-профилям.'],
       ['#moderation', 'Проверьте спам', 'В разделе «Спам и нарушения» можно прочитать исходный текст, ответить автору, вернуть сообщение или удалить чат.'],
       ['#telegram', 'Подключите Telegram', 'Откройте бота по ссылке и нажмите «Старт». В Telegram будут приходить новые обращения с полным текстом.'],
       ['#open-analytics', 'Откройте аналитику', 'Здесь можно проверить просрочки, открыть обращения по типу или статусу, посмотреть оценки и скачать отчёт.'],
@@ -826,6 +882,7 @@ const analyticsGuide = [
 ]
 const repeatGuide = [
   ['#repeat-groups', 'Найдите повторяющиеся проблемы', 'Откройте группу и раскройте обращение, чтобы прочитать жалобу и принятое решение.'],
+  ['#repeat-groups', 'Объедините повторы', 'Выберите похожие обращения и назначьте одного исполнителя. При завершении общего дела итог получат все авторы.'],
 ]
 let tourSteps = []
 let tourIndex = 0
@@ -1020,14 +1077,14 @@ function drawProfileOptions() {
   const groups = Object.entries(roleNames).map(([role, label]) => {
     if (profileRole && role !== profileRole) return ''
     const profiles = config.profiles.filter(profile => profile.role === role &&
-      [profile.name, profile.department, label].map(translate).join(' ').toLocaleLowerCase(locale).includes(query))
+      [profile.name, profile.position, profile.department, label].map(translate).join(' ').toLocaleLowerCase(locale).includes(query))
     if (!profiles.length) return ''
     const heading = !profileRole && profiles[0].name !== label ? '<h3>' + label + '</h3>' : ''
     return '<div class="profile-group">' + heading + profiles.map(profile => `
       <button type="button" class="profile-option" data-profile-id="${escapeHtml(profile.id)}" aria-current="${profile.id === selected}">
         <span class="avatar" data-role-tone="${role}" aria-hidden="true">${escapeHtml(initials(profile.name))}</span>
         <span class="profile-option-text"><strong>${escapeHtml(profile.name)}</strong>
-          ${profile.department ? '<small>' + escapeHtml(profile.department) + '</small>' : ''}</span>
+          ${profile.position || profile.department ? '<small>' + [profile.position, profile.department].filter(Boolean).map(escapeHtml).join(' · ') + '</small>' : ''}</span>
         <span class="profile-option-check">${icon('tick')}</span>
       </button>`).join('') + '</div>'
   }).join('')
@@ -1108,7 +1165,7 @@ serviceVideo.addEventListener('click', event => {
 serviceVideo.addEventListener('close', () => serviceVideo.querySelector('video').pause())
 
 $('back-to-welcome').onclick = async () => {
-  if (!$('analytics').hidden || !$('repeats').hidden) {
+  if (!$('analytics').hidden || !$('repeats').hidden || !$('improvements').hidden) {
     location.hash = 'main'
     return
   }
@@ -1130,6 +1187,7 @@ async function switchProfile(profileId) {
   $('profile-trigger').disabled = true
   try {
     config.user = await api('session', { profile: profileId })
+    if (location.hash) history.replaceState(history.state, '', location.pathname + location.search)
     $('rating-card').hidden = true
     delete $('rating-form').dataset.caseId
     resetFilters()
@@ -1143,7 +1201,6 @@ async function switchProfile(profileId) {
     draw()
     $('heading').focus()
     await refresh()
-    void checkInbox().catch(() => {})
     void checkTelegram().catch(() => {})
   } catch (error) {
     notice(error.message, true)
@@ -1168,7 +1225,6 @@ async function init() {
   $('department-filter').innerHTML = options(config.departments, '', 'Все подразделения')
   showRole()
   await refresh()
-  void checkInbox().catch(() => {})
   void checkTelegram().catch(() => {})
 }
 init().catch(error => notice(error.message, true))

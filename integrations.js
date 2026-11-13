@@ -3,7 +3,7 @@ const fs = require('node:fs')
 const envPath = path.join(__dirname, '.env')
 if (fs.existsSync(envPath)) process.loadEnvFile(envPath)
 
-async function gemini(instruction, data, schema, media) {
+async function gemini(instruction, data, schema, media, { timeout = media ? 40000 : 18000, retry = true } = {}) {
   const key = process.env.GEMINI_API_KEY
   if (!key) throw new Error('Укажите GEMINI_API_KEY в .env.')
   const model = media ? (process.env.GEMINI_AUDIO_MODEL || 'gemini-3.5-flash-lite') :
@@ -19,9 +19,9 @@ async function gemini(instruction, data, schema, media) {
         ...(model.startsWith('gemini-2.5-flash') ? { thinkingConfig: { thinkingBudget: 0 } } : {}) },
     }),
   }
-  const signal = AbortSignal.timeout(media ? 40000 : 18000)
+  const signal = AbortSignal.timeout(timeout)
   let response = await fetch(url, { ...request, signal })
-  if (response.status >= 500) {
+  if (retry && response.status >= 500) {
     await response.body?.cancel()
     await new Promise(resolve => setTimeout(resolve, 650))
     response = await fetch(url, { ...request, signal })
@@ -69,7 +69,7 @@ async function matchAnswer(question, answers) {
 async function moderate(text) {
   const { reason } = await gemini(
     'Модерация обращений сотрудников. Верни ровно одно значение: profanity для явного мата, insult для прямого оскорбления человека или группы, spam для бессмысленной рассылки или рекламы, clean в остальных случаях. Жалоба, критика работы, эмоциональная формулировка и нейтральное описание чужого нарушения допустимы.',
-    { text }, object({ reason: string }),
+    { text }, object({ reason: string }), undefined, { timeout: 2500, retry: false },
   )
   return ({ profanity: 'Нецензурная лексика', insult: 'Оскорбление', spam: 'Спам' })[reason] || null
 }

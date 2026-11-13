@@ -38,11 +38,14 @@ function showAnalyticsPage() {
   const user = config?.user
   const open = user?.role === 'admin' && location.hash === '#analytics'
   const repeats = user?.role === 'admin' && location.hash === '#repeats'
+  const improvements = Boolean(user) && location.hash === '#improvements'
   $('analytics').hidden = !open
   $('repeats').hidden = !repeats
-  $('workspace-intro').hidden = open || repeats || !user
-  $('workspace').hidden = open || repeats || !user
-  $('stats-panel').hidden = open || repeats || user?.role !== 'admin'
+  $('improvements').hidden = !improvements
+  $('workspace-intro').hidden = open || repeats || improvements || !user
+  $('workspace').hidden = open || repeats || improvements || !user
+  $('stats-panel').hidden = open || repeats || improvements || user?.role !== 'admin'
+  if (improvements) void loadImprovements()
   if (open) drawAnalytics()
   if (repeats) void loadRepeatedProblems()
   if (!open && !repeats && user && ['#analytics', '#repeats'].includes(location.hash)) {
@@ -55,6 +58,7 @@ window.addEventListener('hashchange', () => {
   showAnalyticsPage()
   if (!$('analytics').hidden) $('analytics-heading').focus({ preventScroll: true })
   if (!$('repeats').hidden) $('repeats-heading').focus({ preventScroll: true })
+  if (!$('improvements').hidden) $('improvements-heading').focus({ preventScroll: true })
 })
 
 function drawAnalytics() {

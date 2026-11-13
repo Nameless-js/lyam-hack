@@ -5,11 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#edf1f6">
   <title>SupCenter — обращения сотрудников</title>
+  <link rel="icon" type="image/png" href="/supcenter-logo.png">
   <link rel="stylesheet" href="/style.css">
   <script src="/motion-14.12.0.js" defer></script>
   <script src="/i18n.js" defer></script>
   <script src="/analytics.js" defer></script>
   <script src="/repeats.js" defer></script>
+  <script src="/improvements.js" defer></script>
   <script src="/media-input.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
@@ -44,7 +46,7 @@
   <div id="brand-intro" class="brand-intro" aria-hidden="true" hidden>
     <div class="intro-lockup">
       <div class="intro-mark">
-        <span class="logo"><svg class="icon" aria-hidden="true"><use href="#icon-brand"/></svg></span>
+        <span class="logo"><img src="/supcenter-logo.png" alt=""></span>
         <span class="intro-name"><span>SupCenter</span></span>
       </div>
       <p class="intro-company">ГК «Модус Трейд»</p>
@@ -52,7 +54,7 @@
   </div>
   <header class="top">
     <div class="top-inner">
-      <div class="brand"><span class="logo"><svg class="icon" aria-hidden="true"><use href="#icon-brand"/></svg></span><span>SupCenter</span></div>
+      <div class="brand"><span class="logo"><img src="/supcenter-logo.png" alt=""></span><span>SupCenter</span></div>
       <span class="company">ГК «Модус Трейд»</span>
       <select id="site-language" aria-label="Язык сайта">
         <option value="ru">Русский</option>
@@ -117,9 +119,10 @@
     <section class="intro" id="workspace-intro" hidden>
       <div><p class="eyebrow" id="role-label"></p><h1 id="heading" tabindex="-1">Обращения сотрудников</h1><p id="subtitle"></p></div>
       <div class="header-actions">
+        <a id="open-improvements" class="analytics-link" href="#improvements"><svg class="icon" aria-hidden="true"><use href="#icon-spark"/></svg>Лента</a>
         <a id="open-analytics" class="analytics-link" href="#analytics" hidden>Аналитика</a>
+        <button id="open-workers" class="secondary" type="button" hidden><svg class="icon" aria-hidden="true"><use href="#icon-person"/></svg>Работники</button>
         <a id="open-repeats" class="analytics-link" href="#repeats" hidden>Повторяющиеся проблемы</a>
-        <button id="notifications" type="button" class="secondary" hidden><svg class="icon" aria-hidden="true"><use href="#icon-bell"/></svg>Уведомления <span id="unread" hidden></span></button>
         <button id="moderation" type="button" class="secondary" hidden><svg class="icon" aria-hidden="true"><use href="#icon-shield"/></svg>Спам и нарушения</button>
         <button id="telegram" type="button" class="secondary" hidden><svg class="icon" aria-hidden="true"><use href="#icon-telegram"/></svg><span id="telegram-label">Подключить уведомления</span></button>
         <button id="new-case" type="button" hidden><svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>Новое обращение</button>
@@ -171,6 +174,17 @@
           <h1 id="repeats-heading" tabindex="-1">Повторяющиеся проблемы</h1></div>
       </div>
       <div id="repeat-groups"></div>
+    </section>
+    <section id="improvements" class="analytics" aria-labelledby="improvements-heading" hidden>
+      <div class="intro analytics-head">
+        <div>
+          <a class="analytics-back" href="#main"><svg class="icon" aria-hidden="true"><use href="#icon-back"/></svg><span>К обращениям</span></a>
+          <h1 id="improvements-heading" tabindex="-1">Лента</h1>
+          <p class="analytics-subtitle">Улучшения по обратной связи сотрудников</p>
+        </div>
+        <button id="publish-improvement" type="button" hidden><svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>Опубликовать изменение</button>
+      </div>
+      <div id="improvement-feed" aria-live="polite"></div>
     </section>
   </main>
   <dialog id="profile-picker" aria-labelledby="profile-picker-title">
